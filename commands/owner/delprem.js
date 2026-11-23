@@ -1,4 +1,4 @@
-const { isOwner } = require('../../lib/database');
+const { isOwner, formatMentionTag } = require('../../lib/database');
 const { resolveTargetUserJid, revokePremium } = require('../../lib/owner-manager');
 const {
   formatSuccess,
@@ -30,7 +30,7 @@ module.exports = {
       return reply(
         formatWarning('Format Cabut Sakura VIP', [
           `✦ Tag member, reply pesannya, atau tulis nomor WhatsApp-nya.`,
-          `✦ Contoh: ${mono(`${prefix}delprem 6281234567890`)} atau cek ${mono(`${prefix}listprem`)}`,
+          `✦ Contoh: ${mono(`${prefix}delprem @user`)} atau cek ${mono(`${prefix}listprem`)}`,
         ])
       );
     }
@@ -42,7 +42,7 @@ module.exports = {
 
     return reply(
       formatSuccess('Status Sakura VIP Dicabut', [
-        `✦ Member : ${keep(res.name)} (@${res.phone || res.targetJid})`,
+        `✦ Member : ${formatMentionTag(res.targetJid, res.name)} (${keep(res.name)})`,
         `✦ Status : Kembali menjadi Member Reguler.`,
       ]),
       { mentions: [res.targetJid] }

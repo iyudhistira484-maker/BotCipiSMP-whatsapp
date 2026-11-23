@@ -97,14 +97,23 @@ module.exports = {
       return;
     }
 
+    const outputLines = String(res.response || '')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 18);
+
     await ctx.reply(
       formatSuccess('Perintah Console Terkirim', [
         res.dryRun ? '⚠️ Mode Simulasi: DRY-RUN AKTIF' : '',
         `✦ Command : ${mono(check.cleanCommand)}`,
         `✦ Jalur   : ${keep(res.via)}`,
-        res.response
-          ? `✦ Output  : ${keep(res.response.slice(0, 500))}`
-          : '◦ Output dikirim ke log console panel server ♡',
+        ...(outputLines.length > 0
+          ? [
+              '✦ Output Server :',
+              ...outputLines.map((line) => `  › ${keep(line.slice(0, 220))}`),
+            ]
+          : ['◦ Perintah diterima oleh server (tidak ada output teks tambahan) ♡']),
       ].filter(Boolean))
     );
   },

@@ -3,6 +3,7 @@ const { getUserProfile } = require('../../lib/database');
 const { getEconomy } = require('../../lib/economy');
 const {
   PROFILE_SHOP_ITEMS,
+  resolveShopItem,
   buyOrEquipShopItem,
   getUserOwnedShopIds,
 } = require('../../lib/kawaii');
@@ -30,17 +31,27 @@ module.exports = {
   async execute(ctx) {
     const { sock, msg, chatJid, senderJid, pushName, args, prefix, reply } = ctx;
     const sub = String(args[0] || '').toLowerCase().trim();
+    const isBuySub = ['beli', 'buy', 'pakai', 'equip', 'pasang'].includes(sub);
 
-    // Beli atau Pasang item (.toko beli <kode> / .toko pakai <kode> / .toko <kode>)
-    const targetCode =
-      sub === 'beli' || sub === 'buy' || sub === 'pakai' || sub === 'equip'
-        ? String(args[1] || '').toLowerCase().trim()
-        : PROFILE_SHOP_ITEMS[sub]
-        ? sub
-        : '';
+    if (isBuySub && !args[1]) {
+      return reply(
+        formatWarning('Pilih Kode atau Nomor Item Toko', [
+          `✦ Contoh pakai kode : ${mono(`${prefix}toko beli bg_starlight`)}`,
+          `✦ Contoh pakai nomor: ${mono(`${prefix}toko beli 2`)}`,
+          `◦ Ketik ${mono(`${prefix}toko`)} untuk melihat katalog lengkap & nomor item ya!`,
+        ])
+      );
+    }
 
-    if (targetCode) {
-      const res = buyOrEquipShopItem(senderJid, targetCode);
+    // Beli atau Pasang item (.toko beli <kode/nomor/nama> atau langsung .toko <kode/nomor>)
+    const rawQuery = isBuySub
+      ? args.slice(1).join(' ').trim()
+      : args.length > 0 && resolveShopItem(args.join(' '))
+      ? args.join(' ').trim()
+      : '';
+
+    if (rawQuery || isBuySub) {
+      const res = buyOrEquipShopItem(senderJid, rawQuery);
       if (!res.ok) {
         if (res.reason === 'insufficient_balance') {
           return reply(
@@ -54,7 +65,8 @@ module.exports = {
         }
         return reply(
           formatWarning('Kode Item Tidak Ditemukan', [
-            `✦ Cek daftar kode lengkap di ${mono(`${prefix}toko`)} ya!`,
+            `✦ Item ${mono(rawQuery)} tidak ditemukan di katalog.`,
+            `✦ Ketik ${mono(`${prefix}toko`)} lalu beli pakai nomor (contoh: ${mono(`${prefix}toko beli 2`)}) atau kode item ya!`,
           ])
         );
       }
@@ -81,11 +93,12 @@ module.exports = {
       });
     }
 
-    // Tampilkan Katalog Toko Lengkap
+    // Tampilkan Katalog Toko Lengkap dengan nomor urut mudah
     const profile = getUserProfile(senderJid, pushName);
     const wallet = getEconomy(senderJid);
     const ownedSet = getUserOwnedShopIds(senderJid);
     const allItems = Object.values(PROFILE_SHOP_ITEMS);
+    const indexMap = new Map(allItems.map((it, idx) => [it.id, idx + 1]));
 
     const isEquipped = (item) => {
       if (item.type === 'bg') return profile.profileBg === item.value;
@@ -100,19 +113,20 @@ module.exports = {
       for (const it of subset) {
         const eq = isEquipped(it);
         const own = ownedSet.has(it.id);
+        const num = indexMap.get(it.id);
         const badge = eq
           ? '✨[Terpasang]'
           : own
           ? '✅[Dimiliki]'
           : `${formatNumber(it.cost)} Koin`;
-        lines.push(`  ◦ ${mono(it.id)} — ${keep(it.name)} (${badge})`);
+        lines.push(`  [${num}] ${mono(it.id)} — ${keep(it.name)} (${badge})`);
       }
       return lines;
     };
 
     const catalogLines = [
       `✦ Saldo Kamu : ${formatNumber(wallet.balance)} ${config.economy.currencyName}`,
-      `✦ Cara Beli  : ${mono(`${prefix}toko beli <kode>`)}`,
+      `✦ Cara Beli  : ${mono(`${prefix}toko beli <nomor/kode>`)} (misal: ${mono(`${prefix}toko beli 2`)})`,
       '',
       ...formatGroup('bg', 'Background Kartu Profil'),
       '',

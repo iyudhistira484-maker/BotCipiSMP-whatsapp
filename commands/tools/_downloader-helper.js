@@ -1,5 +1,5 @@
 const config = require('../../config');
-const { downloadRemoteBuffer } = require('../../lib/api');
+const { downloadRemoteBuffer, tryYtDlpDownload } = require('../../lib/api');
 const {
   getDailyLimitStatus,
   consumeDailyLimit,
@@ -100,7 +100,24 @@ async function executeMediaDownload(ctx, {
       return;
     }
 
-    const mediaDownloaded = await downloadRemoteBuffer(apiResult.mediaUrl);
+    let mediaBuffer = apiResult.mediaBuffer || null;
+    let finalType = apiResult.type;
+    let finalProvider = apiResult.provider;
+
+    if (!mediaBuffer) {
+      try {
+        const mediaDownloaded = await downloadRemoteBuffer(apiResult.mediaUrl);
+        mediaBuffer = mediaDownloaded.buffer;
+      } catch (cdnErr) {
+        // Jika URL CDN dari API pihak ketiga kena blokir 403/expired, fallback otomatis ke yt-dlp langsung!
+        const wantAudio = apiResult.type === 'audio';
+        const ytFallback = await tryYtDlpDownload(targetUrl, { audioOnly: wantAudio });
+        mediaBuffer = ytFallback.mediaBuffer;
+        finalType = ytFallback.type || finalType;
+        finalProvider = 'yt-dlp Engine';
+      }
+    }
+
     consumeDailyLimit(senderJid, 'downloader', 1);
     const remLabel = formatRemainingLimit(senderJid, 'downloader');
 
@@ -109,17 +126,17 @@ async function executeMediaDownload(ctx, {
       [
         `✦ Judul      : ${keep((apiResult.title || platformLabel).slice(0, 120))}`,
         apiResult.author ? `✦ Kreator    : ${keep(apiResult.author)}` : '',
-        `◦ Sumber API : ${keep(apiResult.provider)}`,
+        `◦ Sumber API : ${keep(finalProvider)}`,
         `◦ Sisa Limit : ${remLabel}`,
       ].filter(Boolean),
       { footer: config.footer }
     );
 
-    if (apiResult.type === 'audio') {
+    if (finalType === 'audio') {
       await sock.sendMessage(
         chatJid,
         {
-          audio: mediaDownloaded.buffer,
+          audio: mediaBuffer,
           mimetype: 'audio/mpeg',
           ptt: false,
         },
@@ -129,11 +146,11 @@ async function executeMediaDownload(ctx, {
       return;
     }
 
-    if (apiResult.type === 'image') {
+    if (finalType === 'image') {
       await sock.sendMessage(
         chatJid,
         {
-          image: mediaDownloaded.buffer,
+          image: mediaBuffer,
           caption,
         },
         { quoted: msg }
@@ -144,7 +161,7 @@ async function executeMediaDownload(ctx, {
     await sock.sendMessage(
       chatJid,
       {
-        video: mediaDownloaded.buffer,
+        video: mediaBuffer,
         mimetype: 'video/mp4',
         caption,
       },

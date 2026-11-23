@@ -1,8 +1,21 @@
 const config = require('../../config');
-const { normalizeUserJid, extractPhoneFromJid } = require('../../lib/database');
+const { normalizeUserJid, formatMentionTag } = require('../../lib/database');
 const { transferCoins } = require('../../lib/economy');
 const { formatSuccess, formatError, mono } = require('../../lib/smallcaps');
 const { formatNumber } = require('../../lib/logger');
+
+function extractCoinAmountToken(tokens = []) {
+  // Cari dari belakang agar nama kontak berspasi (@Cello Cristia 2002) maupun (.transfer 2002 @Cello Cristia) terbaca akurat
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const raw = String(tokens[i] || '').trim();
+    if (!raw || raw.startsWith('@')) continue;
+    const cleaned = raw.replace(/[.,_]/g, '');
+    if (/^[0-9]{1,9}$/.test(cleaned) && Number(cleaned) > 0) {
+      return cleaned;
+    }
+  }
+  return null;
+}
 
 module.exports = {
   name: 'transfer',
@@ -16,7 +29,7 @@ module.exports = {
   premiumOnly: false,
 
   async execute(ctx) {
-    const { sock, msg, chatJid, senderJid, senderNumber, args, mentionedJids, quotedSenderJid } = ctx;
+    const { sock, msg, chatJid, senderJid, args, mentionedJids, quotedSenderJid } = ctx;
     const p = config.prefix;
     const cur = config.economy.currencyName;
 
@@ -25,16 +38,17 @@ module.exports = {
 
     if (mentionedJids && mentionedJids.length > 0) {
       targetJid = normalizeUserJid(mentionedJids[0]);
-      // Cari token angka yang bukan @mention
-      rawAmount = args.find((tok) => !tok.startsWith('@') && /^[0-9]+$/.test(tok));
+      rawAmount = extractCoinAmountToken(args);
     } else if (quotedSenderJid) {
       targetJid = normalizeUserJid(quotedSenderJid);
-      rawAmount = args.find((tok) => /^[0-9]+$/.test(tok));
+      rawAmount = extractCoinAmountToken(args);
     } else if (args.length >= 2) {
-      const digits = String(args[0]).replace(/[^0-9]/g, '');
+      let digits = String(args[0]).replace(/[^0-9]/g, '');
+      if (digits.startsWith('08')) digits = `62${digits.slice(1)}`;
+      else if (digits.startsWith('8') && digits.length >= 9) digits = `62${digits}`;
       if (digits.length >= 8) {
         targetJid = `${digits}@s.whatsapp.net`;
-        rawAmount = args[1];
+        rawAmount = String(args[1]).replace(/[.,_]/g, '');
       }
     }
 
@@ -43,6 +57,7 @@ module.exports = {
         formatError('Format Transfer', [
           `Contoh 1: ${mono(`${p}transfer @teman 250`)}`,
           `Contoh 2: Balas pesan teman lalu ketik ${mono(`${p}transfer 250`)}`,
+          `Contoh 3: ${mono(`${p}transfer 08123456789 250`)}`,
         ])
       );
       return;
@@ -81,9 +96,8 @@ module.exports = {
       return;
     }
 
-    const fromTag = senderNumber ? `@${senderNumber}` : 'Pengirim';
-    const toPhone = extractPhoneFromJid(targetJid);
-    const toTag = toPhone ? `@${toPhone}` : targetJid.split('@')[0];
+    const fromTag = formatMentionTag(senderJid, 'Pengirim');
+    const toTag = formatMentionTag(targetJid, 'Penerima');
 
     await sock.sendMessage(
       chatJid,

@@ -15,6 +15,7 @@ const path = require('path');
 process.env.SESSION_DIR = '/tmp/cipismp-e2e/session';
 process.env.OWNER_NUMBERS = '6281234567890';
 process.env.DRY_RUN = 'true';
+process.env.CIPI_DISABLE_YTDLP = '1';
 
 const config = require('../config');
 const {

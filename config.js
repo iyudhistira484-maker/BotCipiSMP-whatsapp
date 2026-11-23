@@ -165,10 +165,10 @@ const config = {
   },
 
   moderation: {
-    spamWindowMs: 7000,
-    spamMaxMessages: 6, // Maks 6 pesan dalam 7 detik sebelum terdeteksi banjir
-    spamDuplicateMax: 4, // Maks 4 pesan identik beruntun dalam 15 detik
-    warnCooldownMs: 10000,
+    spamWindowMs: 6000,
+    spamMaxMessages: 10, // Maks 10 pesan non-command dalam 6 detik sebelum terdeteksi banjir
+    spamDuplicateMax: 5, // Maks 5 pesan panjang identik beruntun dalam 10 detik
+    warnCooldownMs: 15000,
   },
 
   gacha: {
@@ -240,6 +240,13 @@ const config = {
       'mspt',
       'seed',
       'save-all',
+      'version',
+      'ver',
+      'plugins',
+      'pl',
+      'spark tps',
+      'geyser list',
+      'difficulty',
       'whitelist list',
       'whitelist on',
       'whitelist off',
