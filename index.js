@@ -19,6 +19,7 @@ const {
 const {
   smallcaps,
   renderBox,
+  formatWarning,
   formatError,
   mono,
   keep,
@@ -1065,10 +1066,60 @@ function loadFeatureModules() {
   }
 }
 
+function getPidLockFilePath() {
+  return path.join(config.paths.databaseDir, '.bot-instance.pid');
+}
+
+function acquireSingleInstanceLock() {
+  try {
+    fs.mkdirSync(config.paths.databaseDir, { recursive: true });
+    const lockFile = getPidLockFilePath();
+    if (fs.existsSync(lockFile)) {
+      const existingPid = Number(String(fs.readFileSync(lockFile, 'utf8') || '').trim());
+      if (Number.isInteger(existingPid) && existingPid > 0 && existingPid !== process.pid) {
+        try {
+          process.kill(existingPid, 0);
+          console.error(
+            formatWarning('Bot Sudah Berjalan di Background', [
+              `✦ PID Aktif : ${existingPid} (PM2)`,
+              `✦ Jangan jalankan ${mono('npm start')} saat PM2 sedang aktif agar sesi WhatsApp & Pterodactyl tidak tabrakan!`,
+              `◦ Ketik ${mono('pm2 logs cipismp-wa-bot')} untuk memantau log atau ${mono('pm2 restart cipismp-wa-bot')} untuk restart.`,
+            ])
+          );
+          process.exit(1);
+        } catch {
+          // Proses lama sudah mati, timpa lockfile dengan aman
+        }
+      }
+    }
+    fs.writeFileSync(lockFile, String(process.pid), 'utf8');
+  } catch {
+    // Abaikan bila direktori tidak dapat ditulis
+  }
+}
+
+function releaseSingleInstanceLock() {
+  try {
+    const lockFile = getPidLockFilePath();
+    if (fs.existsSync(lockFile)) {
+      const pidInFile = Number(String(fs.readFileSync(lockFile, 'utf8') || '').trim());
+      if (pidInFile === process.pid) {
+        fs.unlinkSync(lockFile);
+      }
+    }
+  } catch {
+    // Abaikan
+  }
+}
+
 /**
  * Bootstrap aplikasi utama
  */
 async function startBot() {
+  if (require.main === module) {
+    acquireSingleInstanceLock();
+  }
+
   console.log(
     renderBox(`${config.botName} • Kawaii Bot 24/7`, [
       `✦ Prefix      : ${keep(config.prefix)}`,
@@ -1162,6 +1213,7 @@ function gracefulShutdown(signal) {
   }
 
   closeDatabase();
+  releaseSingleInstanceLock();
   process.exit(0);
 }
 
