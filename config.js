@@ -193,13 +193,13 @@ const config = {
     port: Number(process.env.MC_PORT || 25565),
     bedrockPort: Number(process.env.MC_BEDROCK_PORT || 19132),
     bedrockPrefix: process.env.MC_BEDROCK_PREFIX || '.',
-    // Regex console chat mendukung nama Java & Geyser Bedrock (awalan "." dan spasi)
+    // Regex console chat & join/leave mendukung Minecraft 26.3 ("System chat: ..."), Java lama, & Geyser Bedrock (awalan "." dan spasi)
     chatRegex:
-      /\]: (?:\[[^\]]*\]\s*)*<([A-Za-z0-9_. ]{2,36})>\s+(.+)$/,
+      /\]: (?:System chat:\s*)?(?:\[[^\]]*\]\s*)*<([A-Za-z0-9_. ]{2,36})>\s+(.+)$/,
     joinRegex:
-      /\]: ([A-Za-z0-9_. ]{2,36}) joined the game/,
+      /\]: (?:System chat:\s*)?([A-Za-z0-9_. ]{2,36}) joined the game/,
     leaveRegex:
-      /\]: ([A-Za-z0-9_. ]{2,36}) left the game/,
+      /\]: (?:System chat:\s*)?([A-Za-z0-9_. ]{2,36}) left the game/,
     verifyCodeTtlMs: 10 * 60 * 1000, // Masa berlaku kode verifikasi .link (10 menit)
     dailyRewardLimit: Number(process.env.MC_DAILY_REWARD_LIMIT || 3),
     rewards: {

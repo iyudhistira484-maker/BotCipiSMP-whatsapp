@@ -1471,7 +1471,11 @@ async function run() {
   const delEasyEv = deleteScheduledEvent('1');
   assert.strictEqual(delEasyEv.ok, true);
 
-  // 31f. .tiket balas mendukung awalan "#", nomor urut "1", dan pencocokan @lid
+  // 31f-extra: Minecraft 26.3 "System chat:" log join/leave regex
+  const mc263Join = config.minecraft.joinRegex.exec('[21:20:59 INFO]: System chat: Yudhis joined the game');
+  assert(mc263Join && mc263Join[1] === 'Yudhis', 'Join regex wajib mengenali log System chat: Minecraft 26.3');
+  const mc263Leave = config.minecraft.leaveRegex.exec('[21:20:59 INFO]: System chat: .Cello_BE left the game');
+  assert(mc263Leave && mc263Leave[1] === '.Cello_BE', 'Leave regex wajib mengenali log System chat: Minecraft 26.3');
   const prevDry = config.dryRun;
   config.dryRun = true;
   const tktCreated = await createSupportTicket({
