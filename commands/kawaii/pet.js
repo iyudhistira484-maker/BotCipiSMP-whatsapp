@@ -116,10 +116,12 @@ module.exports = {
     if (sub === 'makan' || sub === 'feed') {
       const res = feedPet(senderJid);
       if (!res.ok) {
+        const kurang = Math.max(0, Number(res.cost || 0) - Number(res.balance || 0));
         return reply(
-          formatWarning('Sakura Coin Kurang', [
-            `✦ Biaya camilan pet lezat: ${res.cost} ${config.economy.currencyName}`,
-            `◦ Yuk klaim ${mono(`${prefix}daily`)} atau ${mono(`${prefix}kerja`)} dulu~`,
+          formatWarning('Saldo Tidak Cukup', [
+            `✦ Biaya : ${formatNumber(res.cost)} ${config.economy.currencyName} (Pakan Pet)`,
+            `✦ Saldo : ${formatNumber(res.balance || 0)} ${config.economy.currencyName} (kurang ${formatNumber(kurang)} koin)`,
+            `◦ Yuk klaim ${mono(`${prefix}daily`)} atau ${mono(`${prefix}kerja`)} dulu!`,
           ])
         );
       }

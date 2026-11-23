@@ -18,6 +18,8 @@ const {
   smallcaps,
   renderBox,
   formatSuccess,
+  formatWarning,
+  formatError,
   keep,
   mono,
 } = require('../lib/smallcaps');
@@ -108,6 +110,7 @@ const {
 const {
   detectDisallowedLink,
   detectSpamBurst,
+  computeAccurateGroupMemberCount,
 } = require('../lib/group-guard');
 const {
   imageToSticker,
@@ -126,6 +129,7 @@ const {
 const {
   sanitizeMinecraftText,
   buildTellrawBroadcastCommand,
+  buildBridgeTellrawCommand,
   validateWhitelistedConsoleCommand,
   startPteroConsoleStream,
   stopPteroConsoleStream,
@@ -140,6 +144,7 @@ const {
   setWaGroupBridgeState,
   isWaGroupBridged,
   buildBridgePrivacyNotice,
+  extractWhatsAppReplyContext,
   relayFromWhatsApp,
   relayFromDiscord,
   handleMinecraftConsoleLine,
@@ -198,8 +203,11 @@ async function run() {
   assert(sample.includes('https://cipismp.my.id'), 'URL tidak boleh berubah');
   assert(sample.includes('.Steve_BE'), 'Username yang di-keep tidak boleh berubah');
   assert(sample.includes('123'), 'Angka tidak boleh berubah');
-  const box = renderBox('Menu Uji', ['✦ Baris satu', '◦ Baris dua'], { footer: config.footer });
-  assert(box.includes('╭─❖') && box.includes('╰────────────'), 'Box frame harus seragam');
+  const box = renderBox('Menu Uji', ['✦ Harga : 1.500 Koin', '◦ Ketik .menu untuk bantuan'], { footer: config.footer });
+  assert(box.includes('🌸 *ᴍᴇɴᴜ ᴜᴊɪ*') && box.includes('━━━━━━━━━━━━━━━━━━'), 'Box frame baru wajib rapi & berwarna');
+  assert(!box.includes('\n│ '), 'Box baru tidak boleh memakai garis samping │ yang patah di layar HP');
+  const warnBox = formatWarning('Saldo Tidak Cukup', ['✦ Harga : 1.500 Sakura Coin']);
+  assert(warnBox.includes('⚠️ *sᴀʟᴅᴏ ᴛɪᴅᴀᴋ ᴄᴜᴋᴜᴘ*'), 'formatWarning wajib tersedia dan berwarna');
   console.log('│ ✅ [1/30] Smallcaps & Box Formatter lulus');
 
   // 2. Uji Database SQLite & Schema Lengkap 14 Tabel
@@ -758,7 +766,7 @@ async function run() {
   assert.strictEqual(isWaGroupBridged(groupJid), true);
   const privacyNotice = buildBridgePrivacyNotice();
   assert(
-    privacyNotice.includes('ᴘʀɪᴠᴀsɪ') && privacyNotice.includes('ᴛɪᴅᴀᴋ ᴍᴇɴʏɪᴍᴘᴀɴ'),
+    privacyNotice.includes('ᴘʀɪᴠᴀsɪ') && /tidak menyimpan/i.test(privacyNotice),
     'Pemberitahuan privasi wajib menjelaskan isi chat tidak disimpan di DB'
   );
 
@@ -1502,13 +1510,112 @@ async function run() {
   assert.strictEqual(replyByIndex.ok, true);
   config.dryRun = prevDry;
 
+  // 32. Uji Regresi Gelombang 2: Akurasi Member 100->99, Saldo Tidak Cukup, & Konteks Reply Bridge
+  const base99 = Array.from({ length: 99 }, (_, i) => ({
+    id: `628100000${String(i + 1).padStart(3, '0')}@s.whatsapp.net`,
+  }));
+  const testerPn = '6285599887766@s.whatsapp.net';
+  const testerLid = '9911223344@lid';
+
+  // Saat member ke-100 masuk -> harus tepat 100
+  const countOnJoin = computeAccurateGroupMemberCount({
+    groupJid: '120363999888777@g.us',
+    groupMeta: { participants: [...base99, { id: testerLid, phoneNumber: testerPn }] },
+    mode: 'welcome',
+    targetJid: testerPn,
+    rawParticipant: { id: testerLid, phoneNumber: testerPn },
+  });
+  assert.strictEqual(countOnJoin, 100, 'Saat member ke-100 masuk, jumlah wajib 100');
+
+  // Saat member itu langsung keluar, walau groupMetadata WA masih stale + duplikat @lid & @s.whatsapp.net (101 entri mentah!), hasil WAJIB 99!
+  const countOnLeave = computeAccurateGroupMemberCount({
+    groupJid: '120363999888777@g.us',
+    groupMeta: {
+      participants: [
+        ...base99,
+        { id: testerLid },
+        { id: testerPn },
+      ],
+    },
+    mode: 'leave',
+    targetJid: testerPn,
+    rawParticipant: { id: testerPn },
+  });
+  assert.strictEqual(countOnLeave, 99, 'Saat member ke-100 keluar, jumlah wajib turun menjadi 99 (bukan 101)');
+
+  // Uji Konteks Reply Bridge: Cello Cristia me-reply pesan "ル aev.yth: nyoli mas?" dengan "mas mulutnya"
+  const aevJid = '6287711223344@s.whatsapp.net';
+  ensureUser(aevJid, 'ル aev.yth');
+  const replyCtxWa = extractWhatsAppReplyContext({
+    quotedMessage: { conversation: 'nyoli mas?' },
+    quotedSenderJid: aevJid,
+  });
+  assert(replyCtxWa && replyCtxWa.targetName === 'ル aev.yth', 'Target reply member WA wajib terbaca akurat');
+  assert.strictEqual(replyCtxWa.snippet, 'nyoli mas?');
+
+  const bridgeCmdWa = buildBridgeTellrawCommand({
+    sourceTag: 'WA',
+    senderName: 'Cello Cristia',
+    message: 'mas mulutnya',
+    replyTo: replyCtxWa,
+  });
+  assert.strictEqual(
+    bridgeCmdWa.say,
+    'say [WA] Cello Cristia -> ル aev.yth ("nyoli mas?"): mas mulutnya',
+    'Format say bridge Minecraft wajib menampilkan siapa & pesan apa yang di-reply'
+  );
+
+  // Uji Reply ke pesan meneruskan dari pemain Minecraft di WA
+  const replyCtxMc = extractWhatsAppReplyContext({
+    quotedMessage: { conversation: '⛏️ *[MC] Yudhis*: ada yg mau beli diamond?' },
+    quotedSenderJid: '6285194139174@s.whatsapp.net',
+  });
+  assert(replyCtxMc && replyCtxMc.targetName === 'Yudhis', 'Reply ke pesan bridge MC wajib menargetkan nama pemain MC');
+  assert.strictEqual(replyCtxMc.snippet, 'ada yg mau beli diamond?');
+
+  // Uji Live Router: User miskin (saldo 0) menjalankan .toko beli 2, .gacha, .slot 200, .suit batu 200, .transfer -> WAJIB "Saldo Tidak Cukup" (tanpa error "tersandung")!
+  const brokeJid = '6283300001111@s.whatsapp.net';
+  ensureUser(brokeJid, 'BrokeTester');
+  getDb().run('UPDATE economy SET balance = 0 WHERE jid = ?', [brokeJid]);
+
+  const brokeReplies = [];
+  const brokeSock = {
+    user: { id: '6280000000000@s.whatsapp.net' },
+    sendMessage: async (_jid, content) => {
+      if (content?.text) brokeReplies.push(content.text);
+      return { key: { id: 'BROKE_MSG' } };
+    },
+    groupMetadata: async () => ({ subject: 'Tes', participants: [] }),
+  };
+
+  for (const rawCmd of [
+    '.toko beli 2',
+    '.gacha',
+    '.slot 200',
+    '.suit batu 200',
+    '.transfer 6281234567890 500',
+  ]) {
+    brokeReplies.length = 0;
+    await handleIncomingMessage(brokeSock, {
+      key: { remoteJid: brokeJid, fromMe: false, id: `BRK_${rawCmd}` },
+      pushName: 'BrokeTester',
+      message: { conversation: rawCmd },
+    });
+    const out = brokeReplies.join('\n');
+    assert(
+      out.includes('sᴀʟᴅᴏ ᴛɪᴅᴀᴋ ᴄᴜᴋᴜᴘ') && !out.includes('tersandung'),
+      `Command "${rawCmd}" saat saldo 0 wajib membalas "Saldo Tidak Cukup", bukan "tersandung". Dapat: ${out}`
+    );
+  }
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/31] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [31/32] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/32] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
   console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Live Bugfix LULUS sempurna! 🌸♡ ❖');
 }
 
