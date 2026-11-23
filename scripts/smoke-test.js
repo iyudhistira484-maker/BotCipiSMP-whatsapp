@@ -204,10 +204,10 @@ async function run() {
   assert(sample.includes('.Steve_BE'), 'Username yang di-keep tidak boleh berubah');
   assert(sample.includes('123'), 'Angka tidak boleh berubah');
   const box = renderBox('Menu Uji', ['✦ Harga : 1.500 Koin', '◦ Ketik .menu untuk bantuan'], { footer: config.footer });
-  assert(box.includes('🌸 *ᴍᴇɴᴜ ᴜᴊɪ*') && box.includes('━━━━━━━━━━━━━━━━━━'), 'Box frame baru wajib rapi & berwarna');
+  assert(box.includes('🌸 *ᴍᴇɴᴜ ᴜᴊɪ*') && box.includes('───────────────'), 'Box frame baru wajib rapi & minimalis');
   assert(!box.includes('\n│ '), 'Box baru tidak boleh memakai garis samping │ yang patah di layar HP');
   const warnBox = formatWarning('Saldo Tidak Cukup', ['✦ Harga : 1.500 Sakura Coin']);
-  assert(warnBox.includes('⚠️ *sᴀʟᴅᴏ ᴛɪᴅᴀᴋ ᴄᴜᴋᴜᴘ*'), 'formatWarning wajib tersedia dan berwarna');
+  assert(warnBox.includes('⚠️ *sᴀʟᴅᴏ ᴛɪᴅᴀᴋ ᴄᴜᴋᴜᴘ*'), 'formatWarning wajib tersedia dan jelas');
   console.log('│ ✅ [1/30] Smallcaps & Box Formatter lulus');
 
   // 2. Uji Database SQLite & Schema Lengkap 14 Tabel
