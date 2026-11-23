@@ -1,0 +1,51 @@
+{
+  "name": "bot-cipismp-whatsapp",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp Kawaii Anime 24/7 dengan Baileys, terintegrasi Minecraft (Pterodactyl/Geyser) & Discord",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "panel": "node panel-server.js",
+    "panel:preview": "node panel-server.js --preview",
+    "panel:build": "node scripts/build-panel-html.js",
+    "pairing": "PAIRING_MODE=true node index.js",
+    "setup": "bash ./install.sh",
+    "panel:start": "bash ./start.sh",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:restart": "pm2 restart ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:logs": "pm2 logs cipismp-wa-bot",
+    "backup": "node -e \"(async()=>{const b=require('./lib/backup');const db=require('./lib/database');await db.initDatabase();const r=await b.createBackup('cli');db.closeDatabase();console.log(r);})()\"",
+    "check": "node scripts/smoke-test.js",
+    "test:panel": "node scripts/panel-test.js",
+    "test": "node scripts/smoke-test.js && node scripts/e2e-full-test.js && node scripts/panel-test.js"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "1.1.0",
+    "@hapi/boom": "10.0.1",
+    "@napi-rs/canvas": "1.2.0",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "better-sqlite3": "13.2.0",
+    "discord.js": "14.28.1",
+    "dotenv": "16.5.0",
+    "gifted-btns": "1.0.2",
+    "node-cron": "4.6.0",
+    "node-webpmux": "3.2.1",
+    "pino": "9.6.0",
+    "sharp": "0.35.5",
+    "sql.js": "1.13.0",
+    "ws": "8.23.0"
+  },
+  "keywords": [
+    "whatsapp-bot",
+    "baileys",
+    "minecraft",
+    "discord",
+    "kawaii",
+    "pterodactyl"
+  ],
+  "license": "MIT"
+}

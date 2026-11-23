@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment & Secrets (NEVER commit!)
+.env
+.env.local
+.env.production
+
+# WhatsApp Session Auth
+session/
+auth_info/
+auth_info_baileys/
+
+# Runtime SQLite Databases & Backups
+database/*.db
+database/*.db-shm
+database/*.db-wal
+database/*.sqlite
+backups/*.db
+backups/*.sqlite
+backups/*.gz
+
+# Logs & Temporary Files
+logs/
+*.log
+tmp/
+.DS_Store
+Unselected files/

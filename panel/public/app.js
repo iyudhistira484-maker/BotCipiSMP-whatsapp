@@ -1,0 +1,1255 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Cipi Panel (CP) — Production Client Controller (100% Real Backend)
+   Zero dummy data — connects exclusively to live Node/OS/SQLite API & SSE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  const state = {
+    token: '',
+    authenticated: false,
+    sandboxPreview: false,
+    activeView: 'console',
+    overview: null,
+    telemetryHistory: [],
+    consoleEntries: [],
+    logFilter: 'ALL',
+    autoScroll: true,
+    cmdHistory: [],
+    cmdHistoryIdx: -1,
+    commandsCatalog: [],
+    userFilter: 'all',
+    userSearch: '',
+    selectedUser: null,
+    sse: null,
+    confirmCallback: null,
+  };
+
+  try {
+    state.token = sessionStorage.getItem('cp-token') || '';
+  } catch {
+    state.token = '';
+  }
+
+  const $ = (id) => document.getElementById(id);
+
+  function saveToken(tok) {
+    state.token = tok || '';
+    try {
+      if (state.token) sessionStorage.setItem('cp-token', state.token);
+      else sessionStorage.removeItem('cp-token');
+    } catch {
+      // Ignore sandboxed storage errors
+    }
+  }
+
+  // ─── Formatting Utilities ───
+  function formatBytes(bytes) {
+    const n = Number(bytes) || 0;
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+    return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+
+  function formatNumber(n) {
+    return Number(n || 0).toLocaleString('id-ID');
+  }
+
+  function formatUptime(sec) {
+    const s = Math.max(0, Math.floor(Number(sec) || 0));
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const rem = s % 60;
+    const pad = (v) => String(v).padStart(2, '0');
+    return d > 0 ? `${d}d ${pad(h)}h ${pad(m)}m` : `${pad(h)}h ${pad(m)}m ${pad(rem)}s`;
+  }
+
+  function formatTimeShort(entry) {
+    if (entry?.ts) {
+      const m = String(entry.ts).match(/(\d{2}:\d{2}:\d{2})/);
+      if (m) return m[1];
+    }
+    const d = new Date(Number(entry?.epoch) || Date.now());
+    return d.toTimeString().slice(0, 8);
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function toast(msg, kind = 'ok') {
+    const stack = $('toastStack');
+    if (!stack) return;
+    const el = document.createElement('div');
+    el.className = `toast ${kind}`;
+    el.textContent = msg;
+    stack.appendChild(el);
+    setTimeout(() => {
+      el.remove();
+    }, 3400);
+  }
+
+  function askConfirm(title, desc, onProceed) {
+    $('confirmModalTitle').textContent = title;
+    $('confirmModalDesc').textContent = desc;
+    state.confirmCallback = onProceed;
+    $('confirmModalBackdrop').classList.remove('hidden');
+  }
+
+  // ─── Theme Management (Dark Mode & Light Mode) ───
+  function getActiveTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+
+  function syncThemeControls() {
+    const isLight = getActiveTheme() === 'light';
+    const label = $('themeModeLabel');
+    if (label) label.textContent = isLight ? 'Light' : 'Dark';
+
+    document.querySelectorAll('.theme-icon-moon').forEach((el) => el.classList.toggle('hidden', isLight));
+    document.querySelectorAll('.theme-icon-sun').forEach((el) => el.classList.toggle('hidden', !isLight));
+  }
+
+  function toggleTheme() {
+    const next = getActiveTheme() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('cp-theme', next);
+    } catch {
+      // Ignore storage restrictions
+    }
+    syncThemeControls();
+    drawAllCharts();
+  }
+
+  // ─── API Helper (Bearer + Same-Origin Cookie) ───
+  async function api(url, opts = {}) {
+    const headers = { ...(opts.headers || {}) };
+    if (state.token) {
+      headers.Authorization = `Bearer ${state.token}`;
+    }
+    const fetchOpts = {
+      method: opts.method || 'GET',
+      headers,
+      credentials: 'same-origin',
+    };
+    if (opts.body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      fetchOpts.body = JSON.stringify(opts.body);
+    }
+
+    const res = await fetch(url, fetchOpts);
+    const data = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
+    if (res.status === 401 && url !== '/api/auth/login') {
+      saveToken('');
+      showAuthGate();
+      throw new Error(data.error || 'Sesi berakhir, silakan login ulang.');
+    }
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || data.output || `Request failed (${res.status})`);
+    }
+    return data;
+  }
+
+  // ─── Auth Gate ───
+  function showAuthGate() {
+    if (state.sse) {
+      state.sse.close();
+      state.sse = null;
+    }
+    $('btnQuickPreview').classList.toggle('hidden', !state.sandboxPreview);
+    $('authOverlay').classList.remove('hidden');
+  }
+
+  function hideAuthGate() {
+    $('authOverlay').classList.add('hidden');
+  }
+
+  async function checkSessionAndBoot() {
+    syncThemeControls();
+
+    if (window.location.protocol === 'about:' || window.location.protocol === 'file:' || window.location.protocol === 'blob:') {
+      $('sseLed').className = 'led danger';
+      $('sseLabel').textContent = 'Static File';
+      $('terminalViewport').innerHTML =
+        `<div class="log-line"><span class="log-lvl warn">WARN</span><span class="log-scope">[VIEWER]</span>` +
+        `<span class="log-msg">File index.html sedang dibuka sebagai file statis tanpa koneksi daemon. Buka tab Live Preview "Cipi Panel" (Port 3000) untuk terhubung ke proses Node.js, SQLite WAL, dan SSE real-time.</span></div>`;
+      return;
+    }
+
+    try {
+      const headers = state.token ? { Authorization: `Bearer ${state.token}` } : {};
+      const res = await fetch('/api/auth/status', { headers, credentials: 'same-origin' });
+      const st = await res.json();
+      state.sandboxPreview = Boolean(st.sandboxPreview);
+
+      if (!st.authenticated) {
+        if (state.sandboxPreview) {
+          const quick = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ quickPreview: true }),
+          });
+          if (quick.ok) {
+            const qData = await quick.json();
+            if (qData.token) saveToken(qData.token);
+            hideAuthGate();
+            await initializeDashboard();
+            return;
+          }
+        }
+        showAuthGate();
+        return;
+      }
+
+      hideAuthGate();
+      await initializeDashboard();
+    } catch (err) {
+      $('sseLed').className = 'led danger';
+      $('sseLabel').textContent = 'Daemon Offline';
+      toast(`Tidak dapat menghubungi daemon Cipi Panel: ${err.message}`, 'error');
+    }
+  }
+
+  // ─── Telemetry & Charts Rendering ───
+  function meterSeverity(pct) {
+    if (pct >= 85) return 'danger';
+    if (pct >= 65) return 'warn';
+    return 'ok';
+  }
+
+  function updateMetricsStrip(sample) {
+    if (!sample) return;
+
+    $('headerUptime').textContent = formatUptime(sample.runtime?.processUptimeSec || 0);
+
+    const cpuPct = Number(sample.cpu?.processPct || 0);
+    const load1m = Array.isArray(sample.cpu?.loadAvg) ? sample.cpu.loadAvg[0] : 0;
+    $('metricCpuVal').textContent = `${cpuPct.toFixed(1)}%`;
+    $('metricCpuSub').textContent = `${sample.cpu?.cores || 1} cores · load ${Number(load1m || 0).toFixed(2)}`;
+    const meterCpu = $('meterCpu');
+    meterCpu.style.width = `${Math.max(3, Math.min(100, cpuPct))}%`;
+    meterCpu.className = `meter-fill ${meterSeverity(cpuPct)}`;
+
+    const rssMb = Number(sample.memory?.rssMb || 0);
+    const heapUsed = Number(sample.memory?.heapUsedMb || 0);
+    const heapTotal = Number(sample.memory?.heapTotalMb || 1);
+    const osMemPct = Number(sample.memory?.osMemPct || 0);
+    $('metricMemVal').textContent = `${rssMb.toFixed(1)} MB`;
+    $('metricMemSub').textContent = `Heap ${heapUsed.toFixed(0)}/${heapTotal.toFixed(0)} MB`;
+    const meterMem = $('meterMem');
+    meterMem.style.width = `${Math.max(5, Math.min(100, osMemPct))}%`;
+    meterMem.className = `meter-fill ${meterSeverity(osMemPct)}`;
+
+    const loopMs = Number(sample.runtime?.eventLoopMs || 0);
+    $('metricLoopVal').textContent = `${loopMs.toFixed(2)} ms`;
+    $('metricLoopSub').textContent = `${sample.runtime?.cmdPerMin || 0} cmds/min`;
+    const loopPct = Math.min(100, (loopMs / 50) * 100);
+    const meterLoop = $('meterLoop');
+    meterLoop.style.width = `${Math.max(4, loopPct)}%`;
+    meterLoop.className = `meter-fill ${meterSeverity(loopPct)}`;
+
+    $('chartCpuLabel').textContent = `${cpuPct.toFixed(1)}%`;
+    $('chartMemLabel').textContent = `${rssMb.toFixed(1)} MB`;
+    $('chartLoopLabel').textContent = `${loopMs.toFixed(2)} ms`;
+
+    const storage = sample.storage;
+    if (storage) {
+      const diskPct = Number(storage.diskUsedPct || 0);
+      $('metricDiskVal').textContent = formatBytes(storage.dbBytes || 0);
+      $('metricDiskSub').textContent =
+        diskPct > 0 ? `Host disk ${diskPct}%` : `Backups ${formatBytes(storage.backupsBytes || 0)}`;
+      const meterDisk = $('meterDisk');
+      meterDisk.style.width = `${Math.max(5, Math.min(100, diskPct || 10))}%`;
+      meterDisk.className = `meter-fill ${meterSeverity(diskPct)}`;
+    }
+  }
+
+  function drawAllCharts() {
+    if (!window.CipiCharts || state.activeView !== 'console') return;
+    const hist = state.telemetryHistory;
+    const cpuSeries = hist.map((s) => s.cpu?.processPct || 0);
+    const memSeries = hist.map((s) => s.memory?.rssMb || 0);
+    const loopSeries = hist.map((s) => s.runtime?.eventLoopMs || 0);
+
+    window.CipiCharts.renderTelemetryChart($('canvasCpu'), cpuSeries, {
+      strokeVar: '--chart-cpu',
+      fillVar: '--chart-cpu-fill',
+      minCeiling: 25,
+      unit: '%',
+    });
+    window.CipiCharts.renderTelemetryChart($('canvasMem'), memSeries, {
+      strokeVar: '--chart-mem',
+      fillVar: '--chart-mem-fill',
+      minCeiling: 140,
+      unit: 'M',
+    });
+    window.CipiCharts.renderTelemetryChart($('canvasLoop'), loopSeries, {
+      strokeVar: '--chart-loop',
+      fillVar: '--chart-loop-fill',
+      minCeiling: 5,
+      unit: 'ms',
+    });
+  }
+
+  // ─── Console Stream Rendering ───
+  function renderConsoleLines() {
+    const vp = $('terminalViewport');
+    if (!vp) return;
+
+    const filtered =
+      state.logFilter === 'ALL'
+        ? state.consoleEntries
+        : state.consoleEntries.filter((e) => String(e.level).toLowerCase() === state.logFilter);
+
+    vp.innerHTML = filtered
+      .map(
+        (entry) =>
+          `<div class="log-line">` +
+          `<span class="log-ts">${escapeHtml(formatTimeShort(entry))}</span>` +
+          `<span class="log-lvl ${escapeHtml(entry.level)}">${escapeHtml(entry.level)}</span>` +
+          `<span class="log-scope">[${escapeHtml(entry.scope)}]</span>` +
+          `<span class="log-msg">${escapeHtml(entry.message)}</span>` +
+          `</div>`
+      )
+      .join('');
+
+    if (state.autoScroll) {
+      vp.scrollTop = vp.scrollHeight;
+    }
+  }
+
+  function appendConsoleEntry(entry) {
+    state.consoleEntries.push(entry);
+    if (state.consoleEntries.length > 300) state.consoleEntries.shift();
+    if (state.activeView === 'console') renderConsoleLines();
+  }
+
+  // ─── SSE Real-Time Connection ───
+  function connectSseStream() {
+    if (state.sse) state.sse.close();
+
+    const sseUrl = state.token
+      ? `/api/stream?token=${encodeURIComponent(state.token)}`
+      : '/api/stream';
+    const es = new EventSource(sseUrl);
+    state.sse = es;
+
+    es.onopen = () => {
+      $('sseLed').className = 'led ok';
+      $('sseLabel').textContent = 'SSE Live (1.5s)';
+    };
+
+    es.addEventListener('init', (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        if (data.overview) applyOverviewData(data.overview);
+        if (Array.isArray(data.telemetryHistory)) {
+          state.telemetryHistory = data.telemetryHistory;
+          const last = state.telemetryHistory[state.telemetryHistory.length - 1];
+          if (last) updateMetricsStrip(last);
+          drawAllCharts();
+        }
+        if (Array.isArray(data.consoleBuffer)) {
+          state.consoleEntries = data.consoleBuffer;
+          renderConsoleLines();
+        }
+      } catch {
+        // Ignore malformed frame
+      }
+    });
+
+    es.addEventListener('telemetry', (ev) => {
+      try {
+        const sample = JSON.parse(ev.data);
+        state.telemetryHistory.push(sample);
+        if (state.telemetryHistory.length > 60) state.telemetryHistory.shift();
+        updateMetricsStrip(sample);
+        drawAllCharts();
+      } catch {
+        // Ignore
+      }
+    });
+
+    es.addEventListener('console', (ev) => {
+      try {
+        const entry = JSON.parse(ev.data);
+        appendConsoleEntry(entry);
+      } catch {
+        // Ignore
+      }
+    });
+
+    es.onerror = () => {
+      $('sseLed').className = 'led warn';
+      $('sseLabel').textContent = 'Reconnecting...';
+    };
+  }
+
+  function updateWaBadge(wa, op) {
+    if (wa) {
+      const status = String(wa.status || 'offline').toLowerCase();
+      const badge = $('waBadge');
+      const runtimeBadge = $('runtimeWaStatusBadge');
+      const led = $('instanceLed');
+
+      if (status === 'online') {
+        badge.className = 'badge ok';
+        badge.textContent = 'WA ONLINE';
+        runtimeBadge.className = 'badge ok';
+        runtimeBadge.textContent = wa.botJid ? `ONLINE · ${wa.botJid}` : 'ONLINE';
+        led.className = 'led ok';
+      } else if (status === 'unlinked') {
+        badge.className = 'badge warn';
+        badge.textContent = 'WA UNLINKED';
+        runtimeBadge.className = 'badge warn';
+        runtimeBadge.textContent = 'NO SESSION (PAIRING NEEDED)';
+        led.className = 'led ok';
+      } else if (status === 'session_saved' || status === 'pairing' || status === 'connecting' || status === 'standalone') {
+        badge.className = 'badge warn';
+        badge.textContent = status.replace('_', ' ').toUpperCase();
+        runtimeBadge.className = 'badge warn';
+        runtimeBadge.textContent = wa.botJid ? `${status.toUpperCase()} · ${wa.botJid}` : status.toUpperCase();
+        led.className = 'led ok';
+      } else {
+        badge.className = 'badge danger';
+        badge.textContent = 'WA OFFLINE';
+        runtimeBadge.className = 'badge danger';
+        runtimeBadge.textContent = 'OFFLINE';
+        led.className = 'led danger';
+      }
+
+      if (wa.pairingCode) {
+        const box = $('pairingResultBox');
+        box.classList.remove('hidden');
+        box.textContent = `Pairing Code: ${wa.pairingCode}`;
+      }
+    }
+
+    if (op) {
+      const modeBadge = $('modeBadge');
+      const curMode = op.botMode || op.mode || 'public';
+      if (op.maintenance) {
+        modeBadge.className = 'badge warn';
+        modeBadge.textContent = 'MAINTENANCE';
+      } else if (curMode === 'self') {
+        modeBadge.className = 'badge accent';
+        modeBadge.textContent = 'SELF MODE';
+      } else {
+        modeBadge.className = 'badge';
+        modeBadge.textContent = 'PUBLIC';
+      }
+
+      $('btnToggleBotMode').textContent = `Mode: ${curMode.toUpperCase()}`;
+      $('btnToggleMaint').textContent = `Maintenance: ${op.maintenance ? 'ON' : 'OFF'}`;
+      $('btnToggleDryRun').textContent = `Dry-Run: ${op.dryRun ? 'ON' : 'OFF'}`;
+      $('btnToggleButtons').textContent = `Buttons: ${op.useButtons ? 'ON' : 'OFF'}`;
+    }
+  }
+
+  function applyOverviewData(ov) {
+    if (!ov) return;
+    state.overview = ov;
+
+    $('headerBotName').textContent = ov.instance.name;
+    $('headerEndpoint').textContent = ov.instance.bind;
+    $('nodeVerLabel').textContent = ov.host.nodeVersion;
+
+    $('navCmdCount').textContent = ov.instance.commands?.commandsCount || 0;
+    $('navUserCount').textContent = ov.counts?.users || 0;
+    $('navTicketCount').textContent = ov.counts?.openTickets || 0;
+
+    updateWaBadge(ov.instance.wa, ov.instance.operational);
+    if (ov.telemetry) updateMetricsStrip(ov.telemetry);
+
+    const envRows = [
+      ['Bot Name / Prefix', `${ov.instance.name} (${ov.instance.prefix})`],
+      ['SQLite Driver', ov.instance.sqliteDriver],
+      ['Card Renderer', ov.instance.cardEngine],
+      ['Node.js / PID', `${ov.host.nodeVersion} · PID ${ov.host.pid}`],
+      ['Host OS', `${ov.host.hostname} · ${ov.host.platform}`],
+      ['CPU Hardware', `${ov.host.cpuModel} (${ov.host.cpuCores} cores)`],
+      ['Loaded Commands', `${ov.instance.commands.commandsCount} primary (${ov.instance.commands.aliasesCount} aliases)`],
+    ];
+    $('runtimeEnvKv').innerHTML = envRows
+      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
+      .join('');
+
+    const secRows = [
+      ['Session Signature', 'HMAC-SHA256 Signed Token (Bearer + HttpOnly)'],
+      ['Brute-Force Protection', 'Active (6 failed attempts / 60s per IP -> HTTP 429)'],
+      ['Secret Redaction Filter', 'Active (API keys, RCON, Discord & Panel secrets -> [REDACTED])'],
+      ['Owner Numbers (.env)', ov.integrations.ownerConfigured ? `${ov.integrations.ownerCount} number(s) configured` : 'Not Set in .env (OWNER_NUMBERS empty)'],
+      ['Minecraft RCON Policy', 'Strict Prefix Whitelist (blocks op / stop / deop with HTTP 403)'],
+      ['AI Provider Integration', `${ov.integrations.aiProvider} (${ov.integrations.aiKeyConfigured ? 'Key Set' : 'No Key in .env'})`],
+      ['Discord Integration', ov.integrations.discordWebhookConfigured || ov.integrations.discordBotConfigured ? 'Configured' : 'Not Set in .env'],
+    ];
+    $('securityPostureKv').innerHTML = secRows
+      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
+      .join('');
+  }
+
+  async function loadOverview() {
+    const res = await api('/api/overview');
+    applyOverviewData(res.overview);
+    if (Array.isArray(res.telemetryHistory) && res.telemetryHistory.length) {
+      state.telemetryHistory = res.telemetryHistory;
+      drawAllCharts();
+    }
+  }
+
+  async function loadCommandsView() {
+    const data = await api('/api/commands');
+    state.commandsCatalog = data.commands || [];
+    $('navCmdCount').textContent = state.commandsCatalog.length;
+
+    const categories = Array.from(new Set(state.commandsCatalog.map((c) => c.category))).sort();
+    const sel = $('cmdCategorySelect');
+    const prev = sel.value || 'ALL';
+    sel.innerHTML =
+      `<option value="ALL">All Categories (${state.commandsCatalog.length})</option>` +
+      categories.map((cat) => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+    sel.value = categories.includes(prev) ? prev : 'ALL';
+
+    renderCommandsTable();
+  }
+
+  function renderCommandsTable() {
+    const q = ($('cmdSearchInput').value || '').trim().toLowerCase();
+    const cat = $('cmdCategorySelect').value || 'ALL';
+
+    const rows = state.commandsCatalog.filter((c) => {
+      if (cat !== 'ALL' && c.category !== cat) return false;
+      if (!q) return true;
+      return (
+        c.name.toLowerCase().includes(q) ||
+        (c.aliases || []).some((a) => a.toLowerCase().includes(q)) ||
+        (c.description || '').toLowerCase().includes(q)
+      );
+    });
+
+    $('cmdTableBody').innerHTML = rows
+      .map((c) => {
+        const scopes = [];
+        if (c.ownerOnly) scopes.push('<span class="badge danger">Owner</span>');
+        if (c.adminOnly) scopes.push('<span class="badge warn">Admin</span>');
+        if (c.premiumOnly) scopes.push('<span class="badge accent">VIP</span>');
+        if (c.groupOnly) scopes.push('<span class="badge">Group</span>');
+        if (!scopes.length) scopes.push('<span class="badge ok">Public</span>');
+
+        return (
+          `<tr>` +
+          `<td class="mono" style="font-weight:600;">.${escapeHtml(c.name)}</td>` +
+          `<td class="mono" style="color:var(--text-muted);">${escapeHtml((c.aliases || []).slice(0, 4).join(', ') || '-')}</td>` +
+          `<td><span class="badge">${escapeHtml(c.category)}</span></td>` +
+          `<td class="mono">${c.cooldown}s</td>` +
+          `<td style="display:flex; gap:4px; flex-wrap:wrap;">${scopes.join('')}</td>` +
+          `<td style="color:var(--text-secondary);">${escapeHtml(c.description)}</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
+  }
+
+  async function loadMinecraftView() {
+    $('mcStatusKv').innerHTML = `<div class="kv-row"><span class="kv-key">Probe</span><span class="kv-val">Querying Minecraft endpoint...</span></div>`;
+    const data = await api('/api/minecraft');
+
+    const st = data.status || {};
+    const mcRows = [
+      ['Server Endpoint', `${data.host}:${data.port} (Bedrock :${data.bedrockPort})`],
+      ['Network State', st.online ? `ONLINE (${st.playersOnline}/${st.playersMax} players)` : 'OFFLINE / Unreachable from current network'],
+      ['Engine / Version', st.version || '-'],
+      ['Probe Source', st.sourceApi || '-'],
+      ['Linked Accounts', `${(data.linkedPlayers || []).length} players in SQLite`],
+    ];
+    $('mcStatusKv').innerHTML = mcRows
+      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
+      .join('');
+
+    const pBadge = $('pteroConfigBadge');
+    if (data.pteroConfigured) {
+      pBadge.className = 'badge ok';
+      pBadge.textContent = 'WINGS LINKED';
+    } else {
+      pBadge.className = 'badge warn';
+      pBadge.textContent = 'ENV NOT SET';
+    }
+
+    const pr = data.pteroResources || {};
+    const pRows = [
+      ['Pterodactyl Client API', data.pteroConfigured ? 'Configured' : 'Set PTERO_PANEL_URL & PTERO_CLIENT_API_KEY in .env'],
+      ['Direct RCON Socket', data.rconConfigured ? 'Configured' : 'Not Set in .env'],
+      ['Wings Container State', pr.state || '-'],
+      ['Wings CPU / RAM', pr.cpuAbsolute !== undefined ? `${pr.cpuAbsolute}% / ${pr.memoryMb || 0} MB` : '-'],
+    ];
+    $('pteroStatusKv').innerHTML = pRows
+      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
+      .join('');
+  }
+
+  async function loadUsersView() {
+    const params = new URLSearchParams({
+      filter: state.userFilter,
+      q: state.userSearch,
+      pageSize: '80',
+    });
+    const [listData, ovRes] = await Promise.all([api(`/api/users?${params}`), api('/api/overview')]);
+    applyOverviewData(ovRes.overview);
+
+    const counts = ovRes.overview.counts || {};
+    $('econTotalUsers').textContent = formatNumber(counts.users);
+    $('econVipUsers').textContent = formatNumber(counts.activeVip);
+    $('econLinkedMc').textContent = formatNumber(counts.linkedMc);
+    $('econBannedUsers').textContent = formatNumber(counts.banned);
+
+    const tbody = $('usersTableBody');
+    if (!listData.users.length) {
+      tbody.innerHTML =
+        `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">` +
+        `Database SQLite belum memiliki user terdaftar. User otomatis tercatat saat mengirim chat ke bot, atau daftarkan nomor secara manual di kolom atas.` +
+        `</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = listData.users
+      .map((u) => {
+        const badges = [];
+        if (u.isBanned) badges.push('<span class="badge danger">BANNED</span>');
+        if (u.isVip) badges.push('<span class="badge accent">VIP</span>');
+        if (!badges.length) badges.push('<span class="badge ok">ACTIVE</span>');
+
+        return (
+          `<tr class="clickable" data-user-jid="${escapeHtml(u.jid)}">` +
+          `<td><div style="font-weight:500;">${escapeHtml(u.name)}</div><div class="mono" style="font-size:11px; color:var(--text-muted);">+${escapeHtml(u.phone)}</div></td>` +
+          `<td class="mono">${escapeHtml(u.mcUsername || '-')}</td>` +
+          `<td class="mono">Lv.${u.level} <span style="color:var(--text-muted);">(${formatNumber(u.xp)} XP)</span></td>` +
+          `<td class="mono">${formatNumber(u.balance)}</td>` +
+          `<td class="mono">${formatNumber(u.bank)}</td>` +
+          `<td>${badges.join(' ')}</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
+
+    tbody.querySelectorAll('tr[data-user-jid]').forEach((row) => {
+      row.addEventListener('click', () => {
+        const found = listData.users.find((x) => x.jid === row.dataset.userJid);
+        if (found) openUserDrawer(found);
+      });
+    });
+  }
+
+  function openUserDrawer(user) {
+    state.selectedUser = user;
+    const rows = [
+      ['Display Name', user.name],
+      ['WhatsApp JID', user.jid],
+      ['Minecraft IGN', user.mcUsername || '-'],
+      ['Wallet Coins', formatNumber(user.balance)],
+      ['Bank Vault', formatNumber(user.bank)],
+      ['Gacha Shards', formatNumber(user.shards)],
+      ['Level / XP', `Lv.${user.level} (${formatNumber(user.xp)} XP)`],
+      ['Sakura VIP', user.isVip ? `Active until ${user.vipExpiresWib}` : 'Standard'],
+      ['Moderation', user.isBanned ? `BANNED (${user.banReason || 'Restricted'})` : 'Good Standing'],
+    ];
+    $('drawerUserKv').innerHTML = rows
+      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
+      .join('');
+    $('userDrawerBackdrop').classList.remove('hidden');
+  }
+
+  async function loadCommsView() {
+    const data = await api('/api/community');
+    const tbody = $('ticketsTableBody');
+    if (!data.tickets.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:18px;">Belum ada tiket masuk (.lapor) di SQLite.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.tickets
+      .map((t) => {
+        const isOpen = t.status === 'open';
+        return (
+          `<tr>` +
+          `<td class="mono" style="font-weight:600;">${escapeHtml(t.ticketNo)}<div style="font-weight:400; font-size:10.5px; color:var(--text-muted);">${escapeHtml(t.userName)}</div></td>` +
+          `<td><span class="badge">${escapeHtml(t.category || 'umum')}</span></td>` +
+          `<td style="max-width:260px;">${escapeHtml(t.subject || t.message)}</td>` +
+          `<td><span class="badge ${isOpen ? 'warn' : 'ok'}">${escapeHtml(t.status.toUpperCase())}</span></td>` +
+          `<td>${
+            isOpen
+              ? `<button type="button" class="btn btn-sm btn-close-ticket" data-ticket="${escapeHtml(t.ticketNo)}">Close</button>`
+              : '-'
+          }</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
+
+    tbody.querySelectorAll('.btn-close-ticket').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try {
+          await api('/api/tickets/close', {
+            method: 'POST',
+            body: { ticketNo: btn.dataset.ticket, resolution: 'Resolved via Cipi Panel' },
+          });
+          toast(`Ticket ${btn.dataset.ticket} closed`);
+          await loadCommsView();
+          await loadOverview();
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      });
+    });
+  }
+
+  async function loadStorageView() {
+    const data = await api('/api/backups');
+    const st = data.storage || {};
+    $('backupRotationSub').textContent = `Schedule: ${data.cronSchedule} WIB · Keep last ${data.keepLast}`;
+
+    const breakdown = [
+      ['SQLite Primary (.db)', formatBytes(st.dbPrimaryBytes ?? st.dbBytes)],
+      ['SQLite Write-Ahead Log (-wal)', formatBytes(st.walBytes || 0)],
+      ['SQLite Shared Memory (-shm)', formatBytes(st.shmBytes || 0)],
+      ['Snapshot Archives (backups/)', `${formatBytes(st.backupsBytes)} (${st.backupsCount || 0} files)`],
+      ['Baileys Auth State (session/)', `${formatBytes(st.sessionBytes)} (${st.sessionFiles || 0} files)`],
+      ['Rotating Logs (logs/)', formatBytes(st.logsBytes)],
+    ];
+    $('storageBreakdownKv').innerHTML = breakdown
+      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
+      .join('');
+
+    const totalRows = (data.tables || []).reduce((acc, t) => acc + Number(t.rows || 0), 0);
+    const fsRows = [
+      ['Host Filesystem Used', st.diskTotalBytes ? `${formatBytes(st.diskUsedBytes)} / ${formatBytes(st.diskTotalBytes)} (${st.diskUsedPct}%)` : 'N/A'],
+      ['Host Filesystem Free', st.diskFreeBytes ? formatBytes(st.diskFreeBytes) : 'N/A'],
+      ['SQLite Total Records', `${formatNumber(totalRows)} rows across ${(data.tables || []).length} tables`],
+      ['Active Database File', st.dbPath ? st.dbPath.split('/').slice(-2).join('/') : 'database/cipismp.db'],
+    ];
+    $('filesystemKv').innerHTML = fsRows
+      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
+      .join('');
+
+    const tbody = $('backupsTableBody');
+    if (!data.backups.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada snapshot di folder backups/. Klik "Create Snapshot" di atas untuk membuat backup SQLite.</td></tr>`;
+      return;
+    }
+
+    const tokenParam = state.token ? `&token=${encodeURIComponent(state.token)}` : '';
+    tbody.innerHTML = data.backups
+      .map(
+        (b) =>
+          `<tr>` +
+          `<td class="mono">${escapeHtml(b.name)}</td>` +
+          `<td class="mono">${formatBytes(b.bytes)}</td>` +
+          `<td class="mono" style="color:var(--text-muted);">${escapeHtml(b.sha256Short)}</td>` +
+          `<td class="mono">${escapeHtml(b.createdWib)}</td>` +
+          `<td><a class="btn btn-sm" href="/api/backups/download?file=${encodeURIComponent(b.name)}${tokenParam}">Download .db</a></td>` +
+          `</tr>`
+      )
+      .join('');
+  }
+
+  async function loadAuditView() {
+    const cat = $('auditCategorySelect').value || '';
+    const data = await api(`/api/audit?limit=80&category=${encodeURIComponent(cat)}`);
+    const auditBody = $('auditTableBody');
+    if (!data.logs.length) {
+      auditBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:14px;">No audit records matching filter.</td></tr>`;
+      return;
+    }
+
+    auditBody.innerHTML = data.logs
+      .map(
+        (l) =>
+          `<tr>` +
+          `<td class="mono" style="color:var(--text-muted);">${escapeHtml(l.timeWib || '-')}</td>` +
+          `<td><span class="badge">${escapeHtml(l.category || 'system')}</span></td>` +
+          `<td class="mono">${escapeHtml(l.actorJid || l.actor_jid || '-')}</td>` +
+          `<td><span class="badge accent">${escapeHtml(l.action)}</span></td>` +
+          `<td class="mono">${escapeHtml(l.target || '-')}</td>` +
+          `</tr>`
+      )
+      .join('');
+  }
+
+  // ─── Navigation Switching ───
+  async function switchView(viewName) {
+    state.activeView = viewName;
+    document.querySelectorAll('.nav-btn[data-view]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.view === viewName);
+    });
+    document.querySelectorAll('.view-section').forEach((sec) => {
+      sec.classList.toggle('hidden', sec.id !== `view-${viewName}`);
+    });
+    $('sidebar').classList.remove('open');
+
+    try {
+      if (viewName === 'console') {
+        renderConsoleLines();
+        requestAnimationFrame(drawAllCharts);
+      } else if (viewName === 'runtime') {
+        await Promise.all([loadOverview(), loadCommandsView()]);
+      } else if (viewName === 'minecraft') {
+        await loadMinecraftView();
+      } else if (viewName === 'users') {
+        await loadUsersView();
+      } else if (viewName === 'comms') {
+        await loadCommsView();
+      } else if (viewName === 'storage') {
+        await loadStorageView();
+      } else if (viewName === 'audit') {
+        await loadAuditView();
+      }
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  async function initializeDashboard() {
+    await loadOverview();
+    connectSseStream();
+    requestAnimationFrame(drawAllCharts);
+  }
+
+  async function runConsoleCommand(cmd) {
+    const clean = String(cmd || '').trim();
+    if (!clean) return;
+    state.cmdHistory.push(clean);
+    state.cmdHistoryIdx = state.cmdHistory.length;
+    try {
+      await api('/api/console/exec', { method: 'POST', body: { command: clean } });
+      await loadOverview();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  // ─── Event Listeners Wiring ───
+  function bindEvents() {
+    $('themeToggleBtn').addEventListener('click', toggleTheme);
+    $('loginThemeBtn').addEventListener('click', toggleTheme);
+
+    $('mobileMenuBtn').addEventListener('click', () => {
+      $('sidebar').classList.toggle('open');
+    });
+
+    window.addEventListener('resize', () => {
+      if (state.activeView === 'console') drawAllCharts();
+    });
+
+    document.querySelectorAll('.nav-btn[data-view]').forEach((btn) => {
+      btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+
+    // Login & Quick Sandbox Preview
+    $('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('authError').classList.add('hidden');
+      try {
+        const loginData = await api('/api/auth/login', {
+          method: 'POST',
+          body: {
+            username: $('loginUsername').value.trim(),
+            password: $('loginPassword').value,
+          },
+        });
+        if (loginData.token) saveToken(loginData.token);
+        $('loginPassword').value = '';
+        hideAuthGate();
+        await initializeDashboard();
+      } catch (err) {
+        $('authError').textContent = err.message;
+        $('authError').classList.remove('hidden');
+      }
+    });
+
+    $('btnQuickPreview').addEventListener('click', async () => {
+      try {
+        const loginData = await api('/api/auth/login', { method: 'POST', body: { quickPreview: true } });
+        if (loginData.token) saveToken(loginData.token);
+        hideAuthGate();
+        await initializeDashboard();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('logoutBtn').addEventListener('click', async () => {
+      await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
+      saveToken('');
+      state.sandboxPreview = false;
+      showAuthGate();
+    });
+
+    // Persistent Instance Header Controls
+    $('btnWaConnect').addEventListener('click', async () => {
+      try {
+        const res = await api('/api/power', { method: 'POST', body: { action: 'connect' } });
+        toast(res.message || 'WhatsApp start signal sent');
+        await loadOverview();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnReloadCmds').addEventListener('click', async () => {
+      try {
+        const res = await api('/api/power', { method: 'POST', body: { action: 'reload' } });
+        toast(`Hot-reloaded ${res.commandsCount} primary commands (${res.aliasesCount} aliases)`);
+        await loadOverview();
+        if (state.activeView === 'runtime') await loadCommandsView();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnWaDisconnect').addEventListener('click', () => {
+      askConfirm(
+        'Disconnect WhatsApp Socket',
+        'Temporarily close the active WhatsApp Baileys socket? You can reconnect anytime using Start.',
+        async () => {
+          const res = await api('/api/power', { method: 'POST', body: { action: 'disconnect' } });
+          toast(res.message || 'WhatsApp socket disconnected');
+          await loadOverview();
+        }
+      );
+    });
+
+    // Console Controls, Quick Chips & Internal CLI
+    document.querySelectorAll('[data-log-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.logFilter = btn.dataset.logFilter;
+        document.querySelectorAll('[data-log-filter]').forEach((b) => b.classList.toggle('active', b === btn));
+        renderConsoleLines();
+      });
+    });
+
+    document.querySelectorAll('[data-cli-chip]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        runConsoleCommand(chip.dataset.cliChip);
+      });
+    });
+
+    $('btnAutoScroll').addEventListener('click', () => {
+      state.autoScroll = !state.autoScroll;
+      $('btnAutoScroll').textContent = `Auto-Scroll: ${state.autoScroll ? 'ON' : 'OFF'}`;
+      if (state.autoScroll) renderConsoleLines();
+    });
+
+    $('btnClearConsole').addEventListener('click', () => {
+      state.consoleEntries = [];
+      renderConsoleLines();
+    });
+
+    $('consoleCmdInput').addEventListener('keydown', (e) => {
+      if (!state.cmdHistory.length) return;
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        state.cmdHistoryIdx = Math.max(0, state.cmdHistoryIdx - 1);
+        $('consoleCmdInput').value = state.cmdHistory[state.cmdHistoryIdx] || '';
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        state.cmdHistoryIdx = Math.min(state.cmdHistory.length, state.cmdHistoryIdx + 1);
+        $('consoleCmdInput').value = state.cmdHistory[state.cmdHistoryIdx] || '';
+      }
+    });
+
+    $('consoleExecForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = $('consoleCmdInput');
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      input.value = '';
+      await runConsoleCommand(cmd);
+    });
+
+    // Runtime Switches & Pairing
+    $('btnToggleBotMode').addEventListener('click', async () => {
+      const cur = state.overview?.instance?.operational?.botMode || 'public';
+      const next = cur === 'public' ? 'self' : 'public';
+      try {
+        const res = await api('/api/runtime/config', { method: 'POST', body: { botMode: next } });
+        applyOverviewData(res.overview);
+        toast(`Bot access mode set to ${next.toUpperCase()}`);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnToggleMaint').addEventListener('click', async () => {
+      const cur = Boolean(state.overview?.instance?.operational?.maintenance);
+      try {
+        const res = await api('/api/runtime/config', { method: 'POST', body: { maintenance: !cur } });
+        applyOverviewData(res.overview);
+        toast(`Maintenance mode ${!cur ? 'ENABLED' : 'DISABLED'}`);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnToggleDryRun').addEventListener('click', async () => {
+      const cur = Boolean(state.overview?.instance?.operational?.dryRun);
+      try {
+        const res = await api('/api/runtime/config', { method: 'POST', body: { dryRun: !cur } });
+        applyOverviewData(res.overview);
+        toast(`Dry-Run simulation ${!cur ? 'ENABLED' : 'DISABLED'}`);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnToggleButtons').addEventListener('click', async () => {
+      const cur = Boolean(state.overview?.instance?.operational?.useButtons);
+      try {
+        const res = await api('/api/runtime/config', { method: 'POST', body: { useButtons: !cur } });
+        applyOverviewData(res.overview);
+        toast(`Interactive buttons ${!cur ? 'ENABLED' : 'DISABLED'}`);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('pairingForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await api('/api/runtime/pairing', {
+          method: 'POST',
+          body: { phone: $('pairingPhoneInput').value },
+        });
+        const box = $('pairingResultBox');
+        box.classList.remove('hidden');
+        box.textContent = `Pairing Code (+${res.phone}): ${res.pairingCode}`;
+        toast('Pairing code generated');
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('cmdSearchInput').addEventListener('input', renderCommandsTable);
+    $('cmdCategorySelect').addEventListener('change', renderCommandsTable);
+
+    // Minecraft & Wings View
+    $('btnRefreshMc').addEventListener('click', () => loadMinecraftView().catch((e) => toast(e.message, 'error')));
+
+    document.querySelectorAll('.ptero-power-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sig = btn.dataset.signal;
+        const execPower = async () => {
+          const res = await api('/api/minecraft/power', { method: 'POST', body: { action: sig } });
+          toast(res.message || `Wings action "${sig}" dispatched`);
+          await loadMinecraftView();
+        };
+        if (sig === 'stop' || sig === 'restart') {
+          askConfirm(
+            `Confirm Wings ${sig.toUpperCase()}`,
+            `Send "${sig}" power signal to Pterodactyl Wings container? Active players may be disconnected.`,
+            execPower
+          );
+        } else {
+          execPower().catch((err) => toast(err.message, 'error'));
+        }
+      });
+    });
+
+    document.querySelectorAll('.rcon-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        $('rconInput').value = btn.dataset.cmd;
+      });
+    });
+
+    $('rconForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cmd = $('rconInput').value.trim();
+      if (!cmd) return;
+      try {
+        const res = await api('/api/minecraft/console', { method: 'POST', body: { command: cmd } });
+        $('rconOutput').textContent = `[OK] $ ${cmd}\n${res.output || res.message || 'Dispatched to server.'}`;
+        toast('RCON command executed');
+      } catch (err) {
+        $('rconOutput').textContent = `[REJECTED] $ ${cmd}\n${err.message}`;
+        toast(err.message, 'error');
+      }
+    });
+
+    // Users & Economy View (including Real SQLite User Registration/Lookup)
+    const ensureForm = $('ensureUserForm');
+    if (ensureForm) {
+      ensureForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const res = await api('/api/users/ensure', {
+            method: 'POST',
+            body: {
+              phone: $('ensureUserPhone').value,
+              name: $('ensureUserName').value,
+            },
+          });
+          $('ensureUserPhone').value = '';
+          $('ensureUserName').value = '';
+          toast(`User +${res.phone} registered in SQLite`);
+          await loadUsersView();
+          const refreshed = await api(`/api/users?q=${encodeURIComponent(res.phone)}&pageSize=5`);
+          const found = (refreshed.users || []).find((u) => u.jid === res.jid);
+          if (found) openUserDrawer(found);
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      });
+    }
+
+    document.querySelectorAll('[data-user-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.userFilter = btn.dataset.userFilter;
+        document.querySelectorAll('[data-user-filter]').forEach((b) => b.classList.toggle('active', b === btn));
+        loadUsersView().catch((err) => toast(err.message, 'error'));
+      });
+    });
+
+    let searchTimer = null;
+    $('userSearchInput').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        state.userSearch = $('userSearchInput').value.trim();
+        loadUsersView().catch((err) => toast(err.message, 'error'));
+      }, 220);
+    });
+
+    $('btnCloseDrawer').addEventListener('click', () => {
+      $('userDrawerBackdrop').classList.add('hidden');
+    });
+    $('userDrawerBackdrop').addEventListener('click', (e) => {
+      if (e.target === $('userDrawerBackdrop')) $('userDrawerBackdrop').classList.add('hidden');
+    });
+
+    async function mutateSelectedUser(url, body, okMsg) {
+      if (!state.selectedUser) return;
+      await api(url, { method: 'POST', body: { jid: state.selectedUser.jid, ...body } });
+      toast(okMsg);
+      await loadUsersView();
+      const refreshed = await api(`/api/users?q=${encodeURIComponent(state.selectedUser.phone)}&pageSize=10`);
+      const found = (refreshed.users || []).find((u) => u.jid === state.selectedUser.jid);
+      if (found) openUserDrawer(found);
+    }
+
+    $('btnDrawerAddCoin').addEventListener('click', () => {
+      const amt = Math.abs(Number($('drawerCoinAmount').value || 0));
+      mutateSelectedUser('/api/users/coins', { delta: amt }, `+${formatNumber(amt)} coins added`).catch((e) =>
+        toast(e.message, 'error')
+      );
+    });
+
+    $('btnDrawerSubCoin').addEventListener('click', () => {
+      const amt = Math.abs(Number($('drawerCoinAmount').value || 0));
+      mutateSelectedUser('/api/users/coins', { delta: -amt }, `-${formatNumber(amt)} coins deducted`).catch((e) =>
+        toast(e.message, 'error')
+      );
+    });
+
+    $('btnDrawerGrantVip').addEventListener('click', () => {
+      const duration = ($('drawerVipDuration').value || '30d').trim();
+      mutateSelectedUser('/api/users/vip', { duration }, `Granted Sakura VIP (${duration})`).catch((e) =>
+        toast(e.message, 'error')
+      );
+    });
+
+    $('btnDrawerRevokeVip').addEventListener('click', () => {
+      mutateSelectedUser('/api/users/vip', { action: 'revoke' }, 'Sakura VIP revoked').catch((e) =>
+        toast(e.message, 'error')
+      );
+    });
+
+    $('btnDrawerBan').addEventListener('click', () => {
+      const reason = $('drawerBanReason').value.trim();
+      mutateSelectedUser('/api/users/ban', { reason }, 'User restricted (banned)').catch((e) =>
+        toast(e.message, 'error')
+      );
+    });
+
+    $('btnDrawerUnban').addEventListener('click', () => {
+      mutateSelectedUser('/api/users/ban', { action: 'unban' }, 'User unbanned').catch((e) =>
+        toast(e.message, 'error')
+      );
+    });
+
+    // Broadcast & Tickets View
+    $('broadcastForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await api('/api/broadcast', {
+          method: 'POST',
+          body: {
+            targetMode: $('bcTargetMode').value,
+            message: $('bcMessage').value,
+          },
+        });
+        const box = $('bcResultInfo');
+        box.classList.remove('hidden');
+        const r = res.result || {};
+        box.textContent = `${r.dryRun ? '[DRY-RUN]' : '[LIVE]'} Broadcast dispatched (target=${$('bcTargetMode').value})`;
+        toast('Broadcast job completed');
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnRefreshComms').addEventListener('click', () => loadCommsView().catch((e) => toast(e.message, 'error')));
+
+    // Storage & Backups View
+    $('btnCreateBackup').addEventListener('click', async () => {
+      try {
+        await api('/api/backups/create', { method: 'POST' });
+        toast('SQLite snapshot created');
+        await loadStorageView();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnWalCheckpoint').addEventListener('click', async () => {
+      try {
+        await api('/api/storage/checkpoint', { method: 'POST' });
+        toast('SQLite WAL TRUNCATE checkpoint completed');
+        await loadStorageView();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    // Audit View
+    $('auditCategorySelect').addEventListener('change', () => loadAuditView().catch((e) => toast(e.message, 'error')));
+    $('btnRefreshAudit').addEventListener('click', () => loadAuditView().catch((e) => toast(e.message, 'error')));
+
+    // Confirmation Modal
+    $('btnConfirmCancel').addEventListener('click', () => {
+      state.confirmCallback = null;
+      $('confirmModalBackdrop').classList.add('hidden');
+    });
+
+    $('btnConfirmProceed').addEventListener('click', async () => {
+      const fn = state.confirmCallback;
+      state.confirmCallback = null;
+      $('confirmModalBackdrop').classList.add('hidden');
+      if (typeof fn === 'function') {
+        try {
+          await fn();
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    bindEvents();
+    checkSessionAndBoot();
+  });
+})();
