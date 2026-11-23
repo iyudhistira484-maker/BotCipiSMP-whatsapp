@@ -22,11 +22,12 @@ module.exports = {
     const res = spinKawaiiSlot(senderJid, betInput);
     if (!res.ok) {
       if (res.reason === 'insufficient_balance') {
+        const kurang = Math.max(0, Number(res.bet || 0) - Number(res.balance || 0));
         return reply(
-          formatWarning('Saldo Sakura Coin Kurang 🌸', [
-            `✦ Taruhan Slot : ${formatNumber(res.bet)} ${config.economy.currencyName}`,
-            `✦ Saldo Kamu   : ${formatNumber(res.balance)} ${config.economy.currencyName}`,
-            `◦ Klaim ${mono(`${prefix}daily`)} atau ${mono(`${prefix}kerja`)} dulu yuk~`,
+          formatWarning('Saldo Tidak Cukup', [
+            `✦ Taruhan : ${formatNumber(res.bet)} ${config.economy.currencyName}`,
+            `✦ Saldo   : ${formatNumber(res.balance)} ${config.economy.currencyName} (kurang ${formatNumber(kurang)} koin)`,
+            `◦ Klaim ${mono(`${prefix}daily`)} atau ${mono(`${prefix}kerja`)} dulu yuk!`,
           ])
         );
       }

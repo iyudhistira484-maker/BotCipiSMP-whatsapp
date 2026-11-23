@@ -7,6 +7,7 @@ const { getEconomy } = require('../../lib/economy');
 const {
   renderBox,
   formatSuccess,
+  formatWarning,
   formatError,
   mono,
   keep,
@@ -115,10 +116,12 @@ module.exports = {
         return;
       }
       if (res.reason === 'insufficient_balance') {
+        const kurang = Math.max(0, Number(res.cost || 0) - Number(res.balance || 0));
         await ctx.reply(
-          formatError('Sakura Coin Belum Cukup', [
-            `Harga paket ini ${formatNumber(res.cost)} koin, sedangkan saldomu ${formatNumber(res.balance)} koin ♡`,
-            `Yuk kumpulkan koin lewat ${mono(`${p}daily`)}, ${mono(`${p}kerja`)}, atau mengobrol aktif di grup!`,
+          formatWarning('Saldo Tidak Cukup', [
+            `✦ Harga : ${formatNumber(res.cost)} ${config.economy.currencyName}`,
+            `✦ Saldo : ${formatNumber(res.balance)} ${config.economy.currencyName} (kurang ${formatNumber(kurang)} koin)`,
+            `◦ Yuk kumpulkan koin lewat ${mono(`${p}daily`)}, ${mono(`${p}kerja`)}, atau ${mono(`${p}quest`)}!`,
           ])
         );
         return;

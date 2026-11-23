@@ -1,7 +1,7 @@
 const config = require('../../config');
 const { normalizeUserJid, formatMentionTag } = require('../../lib/database');
 const { transferCoins } = require('../../lib/economy');
-const { formatSuccess, formatError, mono } = require('../../lib/smallcaps');
+const { formatSuccess, formatWarning, formatError, mono } = require('../../lib/smallcaps');
 const { formatNumber } = require('../../lib/logger');
 
 function extractCoinAmountToken(tokens = []) {
@@ -84,9 +84,12 @@ module.exports = {
         return;
       }
       if (res.reason === 'insufficient_funds') {
+        const kurang = Math.max(0, Number(parsedAmount || 0) - Number(res.senderBalance || 0));
         await ctx.reply(
-          formatError('Saldo Tidak Cukup', [
-            `Saldo dompetmu saat ini ${formatNumber(res.senderBalance)} ${cur}, kurang untuk mengirim ${formatNumber(parsedAmount)} ${cur} ♡`,
+          formatWarning('Saldo Tidak Cukup', [
+            `✦ Nominal : ${formatNumber(parsedAmount)} ${cur}`,
+            `✦ Saldo   : ${formatNumber(res.senderBalance)} ${cur} (kurang ${formatNumber(kurang)} koin)`,
+            `◦ Yuk klaim ${mono(`${p}daily`)} atau ${mono(`${p}kerja`)} dulu!`,
           ])
         );
         return;

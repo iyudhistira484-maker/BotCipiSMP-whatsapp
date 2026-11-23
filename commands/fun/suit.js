@@ -46,10 +46,12 @@ module.exports = {
     const res = playRockPaperScissors(senderJid, choiceArg, betArg);
     if (!res.ok) {
       if (res.reason === 'insufficient_balance') {
+        const kurang = Math.max(0, Number(res.bet || 0) - Number(res.balance || 0));
         return reply(
-          formatWarning('Saldo Taruhan Tidak Cukup', [
+          formatWarning('Saldo Tidak Cukup', [
             `✦ Taruhan : ${formatNumber(res.bet)} ${config.economy.currencyName}`,
-            `✦ Saldomu : ${formatNumber(res.balance)} ${config.economy.currencyName}`,
+            `✦ Saldo   : ${formatNumber(res.balance)} ${config.economy.currencyName} (kurang ${formatNumber(kurang)} koin)`,
+            `◦ Klaim ${mono(`${prefix}daily`)} atau ${mono(`${prefix}kerja`)} dulu yuk!`,
           ])
         );
       }

@@ -130,11 +130,12 @@ module.exports = {
     const pullRes = performGachaPull(senderJid, pullCount);
 
     if (!pullRes.ok) {
+      const kurang = Math.max(0, Number(pullRes.cost || 0) - Number(pullRes.balance || 0));
       return reply(
-        formatWarning('Sakura Coin Belum Cukup 🌸', [
-          `✦ Biaya ${pullCount}x Gacha : ${formatNumber(pullRes.cost)} ${config.economy.currencyName}`,
-          `✦ Saldo Kamu      : ${formatNumber(pullRes.balance)} ${config.economy.currencyName}`,
-          `◦ Yuk klaim ${mono(`${prefix}daily`)}, ${mono(`${prefix}kerja`)}, atau kerjakan ${mono(`${prefix}quest`)} dulu~`,
+        formatWarning('Saldo Tidak Cukup', [
+          `✦ Biaya : ${formatNumber(pullRes.cost)} ${config.economy.currencyName} (${pullCount}x Gacha)`,
+          `✦ Saldo : ${formatNumber(pullRes.balance)} ${config.economy.currencyName} (kurang ${formatNumber(kurang)} koin)`,
+          `◦ Yuk klaim ${mono(`${prefix}daily`)}, ${mono(`${prefix}kerja`)}, atau kerjakan ${mono(`${prefix}quest`)} dulu!`,
         ])
       );
     }

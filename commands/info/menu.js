@@ -58,6 +58,7 @@ module.exports = {
     }
 
     const captionText = buildMenuText({
+      senderJid,
       senderNumber,
       profile,
       uptimeMs,
@@ -103,6 +104,7 @@ module.exports = {
       });
     } else {
       const fullFallback = buildMenuText({
+        senderJid,
         senderNumber,
         profile,
         uptimeMs,

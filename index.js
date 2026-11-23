@@ -504,6 +504,10 @@ async function handleIncomingMessage(sock, msg) {
         isGroup,
         body: effectiveBody,
         userRow,
+        mentionedJids,
+        quotedMessage,
+        quotedSenderJid,
+        contextInfo,
       });
       if (hookRes && hookRes.stopProcessing) {
         return;

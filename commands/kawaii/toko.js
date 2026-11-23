@@ -54,11 +54,12 @@ module.exports = {
       const res = buyOrEquipShopItem(senderJid, rawQuery);
       if (!res.ok) {
         if (res.reason === 'insufficient_balance') {
+          const kurang = Math.max(0, Number(res.cost || 0) - Number(res.balance || 0));
           return reply(
-            formatWarning('Sakura Coin Belum Cukup 🌸', [
+            formatWarning('Saldo Tidak Cukup', [
               `✦ Item  : ${keep(res.item.name)}`,
               `✦ Harga : ${formatNumber(res.cost)} ${config.economy.currencyName}`,
-              `✦ Saldo : ${formatNumber(res.balance)} ${config.economy.currencyName}`,
+              `✦ Saldo : ${formatNumber(res.balance)} ${config.economy.currencyName} (kurang ${formatNumber(kurang)} koin)`,
               `◦ Yuk kumpulkan koin lewat ${mono(`${prefix}daily`)}, ${mono(`${prefix}kerja`)}, atau ${mono(`${prefix}quest`)}!`,
             ])
           );
