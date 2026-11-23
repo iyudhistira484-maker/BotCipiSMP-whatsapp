@@ -91,7 +91,7 @@ module.exports = {
         details: { groupJid: chatJid },
       });
 
-      const tag = targetPhone ? `@${targetPhone}` : targetJid.split('@')[0];
+      const tag = targetPhone ? `@${targetPhone}` : `@${targetJid.split('@')[0]}`;
       await sock.sendMessage(
         chatJid,
         {

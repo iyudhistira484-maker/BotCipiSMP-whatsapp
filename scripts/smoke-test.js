@@ -11,6 +11,7 @@ process.env.SESSION_DIR = '/tmp/cipismp-smoke/session';
 process.env.DB_PATH = '/tmp/cipismp-smoke/bot.db';
 process.env.BACKUP_DIR = '/tmp/cipismp-smoke/backups';
 process.env.OWNER_NUMBERS = '6281234567890';
+process.env.CIPI_DISABLE_YTDLP = '1';
 
 const config = require('../config');
 const {
@@ -537,7 +538,10 @@ async function run() {
   assert(!cleanMc.includes('§4'), 'Formatting code § harus dihapus');
   assert(!/@[ea]\b/.test(cleanMc), 'Selector @e/@a harus dinetralkan');
   const tellrawCmd = buildTellrawBroadcastCommand(cleanMc);
-  assert(tellrawCmd.startsWith('tellraw @a ['));
+  assert(
+    tellrawCmd.startsWith('tellraw @a {"text":"","extra":['),
+    'Tellraw wajib memakai compound homogen yang valid di MC 1.8 s/d 1.21.5+ SNBT'
+  );
 
   // Jalankan server TCP RCON tiruan lokal untuk menguji klien RCON murni
   let receivedRconCmd = '';
@@ -580,11 +584,11 @@ async function run() {
     assert.strictEqual(rconDirect.ok, true);
     assert.strictEqual(receivedRconCmd, 'say Halo dari RCON');
 
-    // Karena Pterodactyl belum diisi, sendMinecraftBroadcast otomatis fallback ke RCON!
+    // Karena Pterodactyl belum diisi, sendMinecraftBroadcast otomatis fallback ke RCON dengan perintah say!
     const mcBc = await sendMinecraftBroadcast('Event dimulai 10 menit lagi!');
     assert.strictEqual(mcBc.ok, true);
-    assert.strictEqual(mcBc.via, 'RCON (tellraw)');
-    assert(receivedRconCmd.startsWith('tellraw @a'));
+    assert.strictEqual(mcBc.via, 'RCON (say)');
+    assert(receivedRconCmd.startsWith('say [CipiSMP]'));
   } finally {
     Object.assign(config.rcon, oldRcon);
     mockRconServer.close();
@@ -1402,6 +1406,101 @@ async function run() {
   assert(!commands.has('contoh'), '_template.js harus diabaikan');
   assert(!commands.has('contohkartu'), '_template-buttons-card.js harus diabaikan');
   assert(!commands.has('contohapi'), '_template-api-limit.js harus diabaikan');
+  console.log(`│ ✅ [30/31] Command Loader (${requiredCommands.length} command utama aktif) & Backup DB lulus`);
+
+  // 31. Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam Adil, .toko, .event Mudah, .tiket Balas)
+  const {
+    registerLidMapping,
+    normalizeUserJid: normJidFn,
+    formatMentionTag,
+  } = require('../lib/database');
+
+  // 31a. @lid -> @s.whatsapp.net auto-resolution & mention tag
+  registerLidMapping('2832737723@lid', '6289911223344@s.whatsapp.net');
+  assert.strictEqual(normJidFn('2832737723@lid'), '6289911223344@s.whatsapp.net');
+  assert.strictEqual(formatMentionTag('2832737723@lid'), '@6289911223344');
+
+  // 31b. sendButtons menyuntikkan contextInfo.mentionedJid ke interactiveMessage
+  let capturedInteractive = null;
+  await sendButtons(
+    {
+      user: { id: '6281234567890:1@s.whatsapp.net' },
+      relayMessage: async (_jid, msgObj) => {
+        capturedInteractive = msgObj;
+        return 'ok';
+      },
+      waUploadToServer: async () => ({}),
+    },
+    groupJid,
+    {
+      title: 'Uji Mention',
+      text: 'Halo @6289911223344',
+      mentions: ['2832737723@lid'],
+      buttons: [{ id: '.menu', text: 'Menu' }],
+    }
+  );
+  assert.deepStrictEqual(
+    capturedInteractive?.interactiveMessage?.contextInfo?.mentionedJid,
+    ['6289911223344@s.whatsapp.net']
+  );
+
+  // 31c. Anti-spam mengabaikan command & balasan singkat wajar ("ok")
+  for (let i = 0; i < 12; i += 1) {
+    assert.strictEqual(detectSpamBurst(groupJid, '6289911223344@s.whatsapp.net', '.menu'), null);
+  }
+  for (let i = 0; i < 6; i += 1) {
+    assert.strictEqual(detectSpamBurst(groupJid, '6289911223344@s.whatsapp.net', 'ok'), null);
+  }
+
+  // 31d. .toko nomor urut & newBalance terdefinisi
+  addBalance('6289911223344@s.whatsapp.net', 5000);
+  const shopRes = buyOrEquipShopItem('6289911223344@s.whatsapp.net', '2');
+  assert.strictEqual(shopRes.ok, true);
+  assert(Number.isFinite(shopRes.newBalance) && shopRes.newBalance > 0);
+
+  // 31e. .event jadwal mudah tanpa tanda "|" & hapus pakai nomor urut "1"
+  assert.strictEqual(parseEventScheduleInput('20:00').valid, true);
+  assert.strictEqual(parseEventScheduleInput('besok 19:30').valid, true);
+  assert.strictEqual(parseEventScheduleInput('sabtu 20:00').valid, true);
+  const easyEv = createScheduledEvent({
+    rawSchedule: 'besok 20:00',
+    title: 'Mabar Boss Dragon',
+    actorJid: testJid,
+  });
+  assert.strictEqual(easyEv.ok, true);
+  const delEasyEv = deleteScheduledEvent('1');
+  assert.strictEqual(delEasyEv.ok, true);
+
+  // 31f-extra: Minecraft 26.3 "System chat:" log join/leave regex
+  const mc263Join = config.minecraft.joinRegex.exec('[21:20:59 INFO]: System chat: Yudhis joined the game');
+  assert(mc263Join && mc263Join[1] === 'Yudhis', 'Join regex wajib mengenali log System chat: Minecraft 26.3');
+  const mc263Leave = config.minecraft.leaveRegex.exec('[21:20:59 INFO]: System chat: .Cello_BE left the game');
+  assert(mc263Leave && mc263Leave[1] === '.Cello_BE', 'Leave regex wajib mengenali log System chat: Minecraft 26.3');
+  const prevDry = config.dryRun;
+  config.dryRun = true;
+  const tktCreated = await createSupportTicket({
+    senderRawJid: '2832737723@lid',
+    pushName: 'Member LID',
+    messageInput: 'Koordinat portal nether rusak di X=120 Z=-45',
+  });
+  assert.strictEqual(tktCreated.ok, true);
+  const replyWithHash = await replySupportTicket({
+    actorRawJid: '6289911223344@s.whatsapp.net',
+    actorName: 'Member LID',
+    isStaff: false,
+    ticketNoInput: `#${tktCreated.ticketNo}`,
+    replyText: 'Tambahan info: sudah dicek ulang barusan kak',
+  });
+  assert.strictEqual(replyWithHash.ok, true);
+  const replyByIndex = await replySupportTicket({
+    actorRawJid: testJid,
+    actorName: 'Owner Cipi',
+    isStaff: true,
+    ticketNoInput: '1',
+    replyText: 'Siap kak, sedang kami perbaiki!',
+  });
+  assert.strictEqual(replyByIndex.ok, true);
+  config.dryRun = prevDry;
 
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
@@ -1409,8 +1508,8 @@ async function run() {
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log(`│ ✅ [30/30] Command Loader (${requiredCommands.length} command utama aktif) & Backup DB lulus`);
-  console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 (FINAL POLISH) LULUS sempurna! 🌸♡ ❖');
+  console.log('│ ✅ [31/31] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Live Bugfix LULUS sempurna! 🌸♡ ❖');
 }
 
 run().catch((err) => {

@@ -1,5 +1,5 @@
 const config = require('../../config');
-const { extractPhoneFromJid, isOwner } = require('../../lib/database');
+const { extractPhoneFromJid, formatMentionTag, isOwner } = require('../../lib/database');
 const {
   parseDurationMs,
   createGiveaway,
@@ -249,13 +249,12 @@ module.exports = {
         );
         return;
       }
-      const phone = extractPhoneFromJid(rr.newWinner);
       await sock.sendMessage(
         chatJid,
         {
           text: formatSuccess(`Reroll Giveaway ${keep(rr.code)}`, [
             `✦ Hadiah            : ${keep(rr.prize)}`,
-            `✦ Pemenang Pengganti: @${phone || rr.newWinner} 🎉`,
+            `✦ Pemenang Pengganti: ${formatMentionTag(rr.newWinner)} 🎉`,
           ]),
           mentions: [rr.newWinner],
         },

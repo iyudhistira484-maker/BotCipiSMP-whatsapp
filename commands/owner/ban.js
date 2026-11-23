@@ -1,5 +1,5 @@
 const config = require('../../config');
-const { isOwner } = require('../../lib/database');
+const { isOwner, formatMentionTag } = require('../../lib/database');
 const { resolveTargetUserJid, banUser } = require('../../lib/owner-manager');
 const { sendButtons } = require('../../lib/buttons');
 const {
@@ -60,20 +60,22 @@ module.exports = {
       return reply(formatWarning('Target Tidak Valid', ['Nomor atau akun target tidak dikenali.']));
     }
 
+    const mentionLabel = formatMentionTag(res.targetJid, res.name);
+    const unbanArg = res.phone || res.targetJid;
+
     await sendButtons(sock, chatJid, {
       title: '❖ Akses User Dibatasi ❖',
       text: formatSuccess('User Berhasil Di-Ban 🔒', [
-        `✦ Nama   : ${keep(res.name)}`,
-        `✦ Nomor  : @${res.phone || res.targetJid}`,
+        `✦ Member : ${mentionLabel} (${keep(res.name)})`,
         `✦ Alasan : ${keep(res.banReason)}`,
-        `◦ Buka kembali kapan saja dengan ${mono(`${prefix}unban ${res.phone}`)}`,
+        `◦ Buka kembali kapan saja dengan ${mono(`${prefix}unban ${unbanArg}`)}`,
       ]),
       footer: config.footer,
       ownerJid: senderJid,
       mentions: [res.targetJid],
       quoted: msg,
       buttons: [
-        { id: `${prefix}unban ${res.phone}`, text: '🔓 Cabut Ban' },
+        { id: `${prefix}unban ${unbanArg}`, text: '🔓 Cabut Ban' },
         { id: `${prefix}banlist`, text: '📋 Daftar Ban' },
       ],
     });

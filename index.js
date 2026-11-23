@@ -10,6 +10,7 @@ const {
   ensureUser,
   ensureGroup,
   normalizeUserJid,
+  registerLidMapping,
   extractPhoneFromJid,
   isOwner,
   getPremiumStatus,
@@ -164,15 +165,40 @@ function resolveCommand(triggerName) {
 /**
  * Resolusi JID pengirim paling akurat (mendukung Baileys v7 LID + participantAlt / remoteJidAlt)
  */
+function harvestLidMappingFromParticipant(entry) {
+  if (!entry || typeof entry !== 'object') return;
+  const candidates = [entry.id, entry.jid, entry.lid, entry.phoneNumber].filter(Boolean);
+  const lid = candidates.find((c) => String(c).endsWith('@lid'));
+  const pn = candidates.find(
+    (c) => String(c).endsWith('@s.whatsapp.net') || /^[0-9]{8,16}$/.test(String(c))
+  );
+  if (lid && pn) {
+    registerLidMapping(lid, pn);
+  }
+}
+
+/**
+ * Resolusi JID pengirim paling akurat (mendukung Baileys v7 LID + participantAlt / remoteJidAlt)
+ */
 function resolveSenderJid(msg, sock) {
   const key = msg?.key || {};
   const isGroup = String(key.remoteJid || '').endsWith('@g.us');
 
   if (key.fromMe && sock?.user?.id) {
+    if (sock.user.lid) {
+      registerLidMapping(sock.user.lid, sock.user.id);
+    }
     return normalizeUserJid(sock.user.id);
   }
 
   if (isGroup) {
+    if (key.participant && key.participantAlt) {
+      if (String(key.participant).endsWith('@lid') && !String(key.participantAlt).endsWith('@lid')) {
+        registerLidMapping(key.participant, key.participantAlt);
+      } else if (String(key.participantAlt).endsWith('@lid') && !String(key.participant).endsWith('@lid')) {
+        registerLidMapping(key.participantAlt, key.participant);
+      }
+    }
     const candidate =
       key.participantAlt && !String(key.participantAlt).endsWith('@lid')
         ? key.participantAlt
@@ -180,11 +206,52 @@ function resolveSenderJid(msg, sock) {
     return normalizeUserJid(candidate);
   }
 
+  if (key.remoteJid && key.remoteJidAlt) {
+    if (String(key.remoteJid).endsWith('@lid') && !String(key.remoteJidAlt).endsWith('@lid')) {
+      registerLidMapping(key.remoteJid, key.remoteJidAlt);
+    } else if (String(key.remoteJidAlt).endsWith('@lid') && !String(key.remoteJid).endsWith('@lid')) {
+      registerLidMapping(key.remoteJidAlt, key.remoteJid);
+    }
+  }
+
   const dmCandidate =
     key.remoteJidAlt && !String(key.remoteJidAlt).endsWith('@lid')
       ? key.remoteJidAlt
       : key.remoteJid || key.remoteJidAlt || '';
   return normalizeUserJid(dmCandidate);
+}
+
+/**
+ * Terjemahkan JID @lid menjadi JID nomor asli @s.whatsapp.net menggunakan cache,
+ * groupMetadata partisipan grup, maupun signalRepository.lidMapping Baileys v7!
+ */
+async function resolveLidJidAsync(sock, chatJid, rawJid) {
+  if (!rawJid) return '';
+  let norm = normalizeUserJid(rawJid);
+  if (!norm.endsWith('@lid')) return norm;
+
+  // 1. Jika di grup, muat metadata grup untuk memanen pasangan lid <-> phoneNumber seluruh member
+  if (chatJid && chatJid.endsWith('@g.us') && sock) {
+    await getCachedGroupMetadata(sock, chatJid);
+    norm = normalizeUserJid(rawJid);
+    if (!norm.endsWith('@lid')) return norm;
+  }
+
+  // 2. Tanya langsung ke LIDMappingStore internal Baileys v7 bila tersedia
+  try {
+    const lidStore = sock?.signalRepository?.lidMapping;
+    if (lidStore && typeof lidStore.getPNForLID === 'function') {
+      const pn = await lidStore.getPNForLID(norm);
+      if (pn && !String(pn).endsWith('@lid')) {
+        const mapped = registerLidMapping(norm, pn);
+        if (mapped) return mapped;
+      }
+    }
+  } catch {
+    // Abaikan bila belum termuat di signal store
+  }
+
+  return norm;
 }
 
 /**
@@ -250,6 +317,11 @@ async function getCachedGroupMetadata(sock, groupJid) {
   }
   try {
     const data = await sock.groupMetadata(groupJid);
+    if (Array.isArray(data?.participants)) {
+      for (const p of data.participants) {
+        harvestLidMappingFromParticipant(p);
+      }
+    }
     groupMetaCache.set(groupJid, {
       data,
       expiresAt: Date.now() + 45 * 1000,
@@ -345,8 +417,9 @@ async function handleIncomingMessage(sock, msg) {
   }
 
   const isGroup = chatJid.endsWith('@g.us');
-  const senderJid = resolveSenderJid(msg, sock);
-  if (!senderJid) return;
+  const initialSenderJid = resolveSenderJid(msg, sock);
+  if (!initialSenderJid) return;
+  const senderJid = await resolveLidJidAsync(sock, chatJid, initialSenderJid);
 
   // Cegah loop pesan yang dikirim bot sendiri kecuali pemilik mengetes di mode self
   if (msg.key.fromMe && !isOwner(senderJid)) {
@@ -405,10 +478,17 @@ async function handleIncomingMessage(sock, msg) {
   } else {
     const extracted = extractMessageTextAndMentions(msg.message);
     effectiveBody = extracted.body;
-    mentionedJids = extracted.mentionedJids;
+    mentionedJids =
+      Array.isArray(extracted.mentionedJids) && extracted.mentionedJids.length > 0
+        ? await Promise.all(
+            extracted.mentionedJids.map((j) => resolveLidJidAsync(sock, chatJid, j))
+          )
+        : [];
     contextInfo = extracted.contextInfo;
     quotedMessage = extracted.quotedMessage;
-    quotedSenderJid = extracted.quotedSenderJid;
+    quotedSenderJid = extracted.quotedSenderJid
+      ? await resolveLidJidAsync(sock, chatJid, extracted.quotedSenderJid)
+      : null;
   }
 
   // 2. Jalankan pre-command hooks (untuk antilink, antispam, XP otomatis, bridge di fase berikutnya)
@@ -906,6 +986,18 @@ async function connectWhatsApp() {
     }
   });
 
+  // Panen pasangan @lid <-> @s.whatsapp.net dari sinkronisasi kontak Baileys v7
+  sock.ev.on('contacts.upsert', (contacts) => {
+    for (const c of contacts || []) {
+      harvestLidMappingFromParticipant(c);
+    }
+  });
+  sock.ev.on('contacts.update', (contacts) => {
+    for (const c of contacts || []) {
+      harvestLidMappingFromParticipant(c);
+    }
+  });
+
   // Segarkan cache grup saat ada perubahan anggota/info
   sock.ev.on('groups.update', (updates) => {
     for (const u of updates || []) {
@@ -915,6 +1007,11 @@ async function connectWhatsApp() {
 
   sock.ev.on('group-participants.update', async (event) => {
     if (event?.id) groupMetaCache.delete(event.id);
+    if (Array.isArray(event?.participants)) {
+      for (const p of event.participants) {
+        if (p && typeof p === 'object') harvestLidMappingFromParticipant(p);
+      }
+    }
     for (const fn of hooks.onGroupParticipantsUpdate) {
       try {
         await fn(sock, event);

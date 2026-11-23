@@ -165,10 +165,10 @@ const config = {
   },
 
   moderation: {
-    spamWindowMs: 7000,
-    spamMaxMessages: 6, // Maks 6 pesan dalam 7 detik sebelum terdeteksi banjir
-    spamDuplicateMax: 4, // Maks 4 pesan identik beruntun dalam 15 detik
-    warnCooldownMs: 10000,
+    spamWindowMs: 6000,
+    spamMaxMessages: 10, // Maks 10 pesan non-command dalam 6 detik sebelum terdeteksi banjir
+    spamDuplicateMax: 5, // Maks 5 pesan panjang identik beruntun dalam 10 detik
+    warnCooldownMs: 15000,
   },
 
   gacha: {
@@ -193,13 +193,15 @@ const config = {
     port: Number(process.env.MC_PORT || 25565),
     bedrockPort: Number(process.env.MC_BEDROCK_PORT || 19132),
     bedrockPrefix: process.env.MC_BEDROCK_PREFIX || '.',
-    // Regex console chat mendukung nama Java & Geyser Bedrock (awalan "." dan spasi)
+    // Mode pengiriman pesan ke server Minecraft: 'say' (paling stabil di semua versi/26.3) atau 'tellraw'
+    broadcastMode: (process.env.MC_BROADCAST_MODE || 'say').toLowerCase(),
+    // Regex console chat & join/leave mendukung Minecraft 26.3 ("System chat: ..."), Java lama, & Geyser Bedrock (awalan "." dan spasi)
     chatRegex:
-      /\]: (?:\[[^\]]*\]\s*)*<([A-Za-z0-9_. ]{2,36})>\s+(.+)$/,
+      /\]: (?:System chat:\s*)?(?:\[[^\]]*\]\s*)*<([A-Za-z0-9_. ]{2,36})>\s+(.+)$/,
     joinRegex:
-      /\]: ([A-Za-z0-9_. ]{2,36}) joined the game/,
+      /\]: (?:System chat:\s*)?([A-Za-z0-9_. ]{2,36}) joined the game/,
     leaveRegex:
-      /\]: ([A-Za-z0-9_. ]{2,36}) left the game/,
+      /\]: (?:System chat:\s*)?([A-Za-z0-9_. ]{2,36}) left the game/,
     verifyCodeTtlMs: 10 * 60 * 1000, // Masa berlaku kode verifikasi .link (10 menit)
     dailyRewardLimit: Number(process.env.MC_DAILY_REWARD_LIMIT || 3),
     rewards: {
@@ -240,6 +242,13 @@ const config = {
       'mspt',
       'seed',
       'save-all',
+      'version',
+      'ver',
+      'plugins',
+      'pl',
+      'spark tps',
+      'geyser list',
+      'difficulty',
       'whitelist list',
       'whitelist on',
       'whitelist off',

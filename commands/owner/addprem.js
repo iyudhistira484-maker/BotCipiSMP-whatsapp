@@ -1,6 +1,10 @@
 const config = require('../../config');
-const { isOwner } = require('../../lib/database');
-const { resolveTargetUserJid, grantPremium } = require('../../lib/owner-manager');
+const { isOwner, formatMentionTag } = require('../../lib/database');
+const {
+  resolveTargetUserJid,
+  parseVipDurationMs,
+  grantPremium,
+} = require('../../lib/owner-manager');
 const { sendButtons } = require('../../lib/buttons');
 const {
   formatSuccess,
@@ -22,16 +26,59 @@ module.exports = {
   premiumOnly: false,
 
   async execute(ctx) {
-    const { sock, msg, chatJid, senderJid, args, prefix, reply } = ctx;
+    const { sock, msg, chatJid, senderJid, args, mentionedJids, quotedSenderJid, prefix, reply } = ctx;
     if (!Boolean(ctx.isOwner || isOwner(senderJid))) {
       return reply(formatError('Khusus Owner', ['Perintah ini hanya untuk Owner CipiSMP ♡']));
     }
 
+    const hasMentionOrReply = Boolean(
+      (mentionedJids && mentionedJids.length > 0) || quotedSenderJid
+    );
+
     const firstIsTarget =
       args[0] && (args[0].startsWith('@') || /^[+0-9-]{7,}$/.test(args[0]));
     const targetJid = resolveTargetUserJid(ctx, firstIsTarget ? args[0] : '');
-    const durationInput = firstIsTarget ? args[1] : args[0];
-    const noteText = (firstIsTarget ? args.slice(2) : args.slice(1)).join(' ').trim();
+
+    let durationInput = '';
+    let noteText = '';
+
+    if (hasMentionOrReply) {
+      // Kebal terhadap nama kontak @mention berspasi (misal: .addprem @Cello Cristia 30d Hadiah)
+      let durIdx = -1;
+      for (let i = 0; i < args.length; i += 1) {
+        const tok = String(args[i] || '');
+        if (tok.startsWith('@')) continue;
+        // Gabungan dua kata seperti "30 hari" / "1 bulan"
+        if (
+          /^\d+$/.test(tok) &&
+          args[i + 1] &&
+          /^(?:m|menit|h|j|jam|d|hari|w|minggu|mo|bln|bulan|y|thn|tahun)$/i.test(args[i + 1])
+        ) {
+          durationInput = `${tok}${args[i + 1]}`;
+          noteText = args.slice(i + 2).join(' ').trim();
+          durIdx = i;
+          break;
+        }
+        // Hindari angka 9+ digit yang merupakan nomor telepon/LID
+        if (/^\d{9,}$/.test(tok)) continue;
+        if (parseVipDurationMs(tok)) {
+          durationInput = tok;
+          noteText = args.slice(i + 1).join(' ').trim();
+          durIdx = i;
+          break;
+        }
+      }
+      // Jika men-tag/reply member tanpa menulis durasi, otomatis berikan 30d!
+      if (durIdx === -1 && targetJid) {
+        durationInput = '30d';
+      }
+    } else {
+      durationInput = firstIsTarget ? args[1] : args[0];
+      noteText = (firstIsTarget ? args.slice(2) : args.slice(1)).join(' ').trim();
+      if (firstIsTarget && !durationInput && targetJid) {
+        durationInput = '30d';
+      }
+    }
 
     if (!targetJid || !durationInput) {
       return reply(
@@ -63,11 +110,13 @@ module.exports = {
     const titleMsg = res.wasExtended
       ? 'Masa Aktif Sakura VIP Diperpanjang! 🌸'
       : 'Sakura VIP Berhasil Diaktifkan! 👑';
+    const mentionLabel = formatMentionTag(res.targetJid, res.name);
+    const revokeArg = res.phone || res.targetJid;
 
     await sendButtons(sock, chatJid, {
       title: '❖ Sakura VIP CipiSMP ❖',
       text: formatSuccess(titleMsg, [
-        `✦ Member      : ${keep(res.name)} (@${res.phone || res.targetJid})`,
+        `✦ Member      : ${mentionLabel} (${keep(res.name)})`,
         `✦ Durasi      : +${keep(res.durationLabel)}`,
         `✦ Berlaku s/d : ${keep(res.expiresWib)}`,
         ...(res.note ? [`✦ Catatan     : ${keep(res.note)}`] : []),
@@ -80,7 +129,7 @@ module.exports = {
       quoted: msg,
       buttons: [
         { id: `${prefix}listprem`, text: '👑 Daftar Member VIP' },
-        { id: `${prefix}delprem ${res.phone}`, text: '🗑️ Cabut VIP' },
+        { id: `${prefix}delprem ${revokeArg}`, text: '🗑️ Cabut VIP' },
       ],
     });
   },

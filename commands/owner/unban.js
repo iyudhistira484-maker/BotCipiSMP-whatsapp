@@ -1,5 +1,5 @@
 const config = require('../../config');
-const { isOwner } = require('../../lib/database');
+const { isOwner, formatMentionTag } = require('../../lib/database');
 const { resolveTargetUserJid, unbanUser } = require('../../lib/owner-manager');
 const {
   formatSuccess,
@@ -47,8 +47,7 @@ module.exports = {
 
     return reply(
       formatSuccess('Akses User Dipulihkan! 🔓', [
-        `✦ Nama   : ${keep(res.name)}`,
-        `✦ Nomor  : @${res.phone || res.targetJid}`,
+        `✦ Member : ${formatMentionTag(res.targetJid, res.name)} (${keep(res.name)})`,
         `✦ Status : Aktif kembali di ${config.botName} ♡`,
       ]),
       { mentions: [res.targetJid] }

@@ -18,7 +18,15 @@ if [ "$NODE_MAJOR" -lt 20 ]; then
 fi
 
 echo "│ ✦ Node.js terdeteksi: $(node -v) | npm: $(npm -v)"
-mkdir -p database backups session logs assets/fonts assets/backgrounds assets/gacha
+mkdir -p database database/bin backups session logs assets/fonts assets/backgrounds assets/gacha
+
+if ! command -v yt-dlp >/dev/null 2>&1 && [ ! -x database/bin/yt-dlp ]; then
+  echo "│ ✦ Menyiapkan engine downloader yt-dlp..."
+  if curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o database/bin/yt-dlp 2>/dev/null; then
+    chmod +x database/bin/yt-dlp
+    echo "│ ✅ Engine yt-dlp berhasil dipasang di database/bin/yt-dlp"
+  fi
+fi
 
 if [ ! -f .env ] && [ -f .env.example ]; then
   cp .env.example .env
