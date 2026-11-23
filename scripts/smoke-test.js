@@ -584,11 +584,11 @@ async function run() {
     assert.strictEqual(rconDirect.ok, true);
     assert.strictEqual(receivedRconCmd, 'say Halo dari RCON');
 
-    // Karena Pterodactyl belum diisi, sendMinecraftBroadcast otomatis fallback ke RCON!
+    // Karena Pterodactyl belum diisi, sendMinecraftBroadcast otomatis fallback ke RCON dengan perintah say!
     const mcBc = await sendMinecraftBroadcast('Event dimulai 10 menit lagi!');
     assert.strictEqual(mcBc.ok, true);
-    assert.strictEqual(mcBc.via, 'RCON (tellraw)');
-    assert(receivedRconCmd.startsWith('tellraw @a'));
+    assert.strictEqual(mcBc.via, 'RCON (say)');
+    assert(receivedRconCmd.startsWith('say [CipiSMP]'));
   } finally {
     Object.assign(config.rcon, oldRcon);
     mockRconServer.close();

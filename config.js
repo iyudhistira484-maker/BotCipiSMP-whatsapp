@@ -193,6 +193,8 @@ const config = {
     port: Number(process.env.MC_PORT || 25565),
     bedrockPort: Number(process.env.MC_BEDROCK_PORT || 19132),
     bedrockPrefix: process.env.MC_BEDROCK_PREFIX || '.',
+    // Mode pengiriman pesan ke server Minecraft: 'say' (paling stabil di semua versi/26.3) atau 'tellraw'
+    broadcastMode: (process.env.MC_BROADCAST_MODE || 'say').toLowerCase(),
     // Regex console chat & join/leave mendukung Minecraft 26.3 ("System chat: ..."), Java lama, & Geyser Bedrock (awalan "." dan spasi)
     chatRegex:
       /\]: (?:System chat:\s*)?(?:\[[^\]]*\]\s*)*<([A-Za-z0-9_. ]{2,36})>\s+(.+)$/,
