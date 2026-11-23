@@ -42,6 +42,15 @@
     }
   }
 
+  // ─── Mobile / Tablet Off-Canvas Sidebar Controller ───
+  function setSidebarOpen(open) {
+    const sidebar = $('sidebar');
+    const backdrop = $('sidebarBackdrop');
+    if (sidebar) sidebar.classList.toggle('open', Boolean(open));
+    if (backdrop) backdrop.classList.toggle('open', Boolean(open));
+    document.body.classList.toggle('nav-locked', Boolean(open) && window.innerWidth < 1024);
+  }
+
   // ─── Formatting Utilities ───
   function formatBytes(bytes) {
     const n = Number(bytes) || 0;
@@ -162,6 +171,7 @@
       state.sse.close();
       state.sse = null;
     }
+    setSidebarOpen(false);
     $('btnQuickPreview').classList.toggle('hidden', !state.sandboxPreview);
     $('authOverlay').classList.remove('hidden');
   }
@@ -177,8 +187,8 @@
       $('sseLed').className = 'led danger';
       $('sseLabel').textContent = 'Static File';
       $('terminalViewport').innerHTML =
-        `<div class="log-line"><span class="log-lvl warn">WARN</span><span class="log-scope">[VIEWER]</span>` +
-        `<span class="log-msg">File index.html sedang dibuka sebagai file statis tanpa koneksi daemon. Buka tab Live Preview "Cipi Panel" (Port 3000) untuk terhubung ke proses Node.js, SQLite WAL, dan SSE real-time.</span></div>`;
+        `<div class="log-line"><span class="log-meta"><span class="log-lvl warn">WARN</span><span class="log-scope">[VIEWER]</span></span>` +
+        `<span class="log-msg">File index.html sedang dibuka sebagai file statis tanpa koneksi daemon. Buka tab Live Preview "Cipi Panel" untuk terhubung ke proses Node.js, SQLite WAL, dan SSE real-time.</span></div>`;
       return;
     }
 
@@ -232,7 +242,7 @@
     const cpuPct = Number(sample.cpu?.processPct || 0);
     const load1m = Array.isArray(sample.cpu?.loadAvg) ? sample.cpu.loadAvg[0] : 0;
     $('metricCpuVal').textContent = `${cpuPct.toFixed(1)}%`;
-    $('metricCpuSub').textContent = `${sample.cpu?.cores || 1} cores · load ${Number(load1m || 0).toFixed(2)}`;
+    $('metricCpuSub').textContent = `${sample.cpu?.cores || 1}c · load ${Number(load1m || 0).toFixed(2)}`;
     const meterCpu = $('meterCpu');
     meterCpu.style.width = `${Math.max(3, Math.min(100, cpuPct))}%`;
     meterCpu.className = `meter-fill ${meterSeverity(cpuPct)}`;
@@ -312,9 +322,11 @@
       .map(
         (entry) =>
           `<div class="log-line">` +
+          `<span class="log-meta">` +
           `<span class="log-ts">${escapeHtml(formatTimeShort(entry))}</span>` +
           `<span class="log-lvl ${escapeHtml(entry.level)}">${escapeHtml(entry.level)}</span>` +
           `<span class="log-scope">[${escapeHtml(entry.scope)}]</span>` +
+          `</span>` +
           `<span class="log-msg">${escapeHtml(entry.message)}</span>` +
           `</div>`
       )
@@ -446,10 +458,22 @@
         modeBadge.textContent = 'PUBLIC';
       }
 
-      $('btnToggleBotMode').textContent = `Mode: ${curMode.toUpperCase()}`;
-      $('btnToggleMaint').textContent = `Maintenance: ${op.maintenance ? 'ON' : 'OFF'}`;
-      $('btnToggleDryRun').textContent = `Dry-Run: ${op.dryRun ? 'ON' : 'OFF'}`;
-      $('btnToggleButtons').textContent = `Buttons: ${op.useButtons ? 'ON' : 'OFF'}`;
+      const modeBtn = $('btnToggleBotMode');
+      const maintBtn = $('btnToggleMaint');
+      const dryBtn = $('btnToggleDryRun');
+      const btnToggle = $('btnToggleButtons');
+
+      modeBtn.textContent = `Mode: ${curMode.toUpperCase()}`;
+      modeBtn.className = curMode === 'public' ? 'btn btn-sm btn-success' : 'btn btn-sm btn-warn';
+
+      maintBtn.textContent = `Maintenance: ${op.maintenance ? 'ON' : 'OFF'}`;
+      maintBtn.className = op.maintenance ? 'btn btn-sm btn-warn' : 'btn btn-sm';
+
+      dryBtn.textContent = `Dry-Run: ${op.dryRun ? 'ON' : 'OFF'}`;
+      dryBtn.className = op.dryRun ? 'btn btn-sm btn-warn' : 'btn btn-sm';
+
+      btnToggle.textContent = `Buttons: ${op.useButtons ? 'ON' : 'OFF'}`;
+      btnToggle.className = op.useButtons ? 'btn btn-sm btn-success' : 'btn btn-sm';
     }
   }
 
@@ -461,9 +485,20 @@
     $('headerEndpoint').textContent = ov.instance.bind;
     $('nodeVerLabel').textContent = ov.host.nodeVersion;
 
-    $('navCmdCount').textContent = ov.instance.commands?.commandsCount || 0;
-    $('navUserCount').textContent = ov.counts?.users || 0;
-    $('navTicketCount').textContent = ov.counts?.openTickets || 0;
+    const cmdCount = ov.instance.commands?.commandsCount || 0;
+    const usrCount = ov.counts?.users || 0;
+    const tktCount = ov.counts?.openTickets || 0;
+
+    $('navCmdCount').textContent = cmdCount;
+    $('navUserCount').textContent = usrCount;
+    $('navTicketCount').textContent = tktCount;
+
+    const tabCmdCount = $('tabCmdCount');
+    const tabUserCount = $('tabUserCount');
+    const tabTicketCount = $('tabTicketCount');
+    if (tabCmdCount) tabCmdCount.textContent = cmdCount;
+    if (tabUserCount) tabUserCount.textContent = usrCount;
+    if (tabTicketCount) tabTicketCount.textContent = tktCount;
 
     updateWaBadge(ov.instance.wa, ov.instance.operational);
     if (ov.telemetry) updateMetricsStrip(ov.telemetry);
@@ -508,6 +543,8 @@
     const data = await api('/api/commands');
     state.commandsCatalog = data.commands || [];
     $('navCmdCount').textContent = state.commandsCatalog.length;
+    const tabCmdCount = $('tabCmdCount');
+    if (tabCmdCount) tabCmdCount.textContent = state.commandsCatalog.length;
 
     const categories = Array.from(new Set(state.commandsCatalog.map((c) => c.category))).sort();
     const sel = $('cmdCategorySelect');
@@ -545,12 +582,12 @@
 
         return (
           `<tr>` +
-          `<td class="mono" style="font-weight:600;">.${escapeHtml(c.name)}</td>` +
+          `<td class="mono cell-nowrap" style="font-weight:600;">.${escapeHtml(c.name)}</td>` +
           `<td class="mono" style="color:var(--text-muted);">${escapeHtml((c.aliases || []).slice(0, 4).join(', ') || '-')}</td>` +
-          `<td><span class="badge">${escapeHtml(c.category)}</span></td>` +
-          `<td class="mono">${c.cooldown}s</td>` +
-          `<td style="display:flex; gap:4px; flex-wrap:wrap;">${scopes.join('')}</td>` +
-          `<td style="color:var(--text-secondary);">${escapeHtml(c.description)}</td>` +
+          `<td class="cell-nowrap"><span class="badge">${escapeHtml(c.category)}</span></td>` +
+          `<td class="mono cell-nowrap">${c.cooldown}s</td>` +
+          `<td class="cell-nowrap"><div class="badge-group">${scopes.join('')}</div></td>` +
+          `<td class="cell-desc">${escapeHtml(c.description)}</td>` +
           `</tr>`
         );
       })
@@ -627,12 +664,12 @@
 
         return (
           `<tr class="clickable" data-user-jid="${escapeHtml(u.jid)}">` +
-          `<td><div style="font-weight:500;">${escapeHtml(u.name)}</div><div class="mono" style="font-size:11px; color:var(--text-muted);">+${escapeHtml(u.phone)}</div></td>` +
-          `<td class="mono">${escapeHtml(u.mcUsername || '-')}</td>` +
-          `<td class="mono">Lv.${u.level} <span style="color:var(--text-muted);">(${formatNumber(u.xp)} XP)</span></td>` +
-          `<td class="mono">${formatNumber(u.balance)}</td>` +
-          `<td class="mono">${formatNumber(u.bank)}</td>` +
-          `<td>${badges.join(' ')}</td>` +
+          `<td class="cell-nowrap"><div style="font-weight:500;">${escapeHtml(u.name)}</div><div class="mono" style="font-size:11px; color:var(--text-muted);">+${escapeHtml(u.phone)}</div></td>` +
+          `<td class="mono cell-nowrap">${escapeHtml(u.mcUsername || '-')}</td>` +
+          `<td class="mono cell-nowrap">Lv.${u.level} <span style="color:var(--text-muted);">(${formatNumber(u.xp)} XP)</span></td>` +
+          `<td class="mono cell-nowrap">${formatNumber(u.balance)}</td>` +
+          `<td class="mono cell-nowrap">${formatNumber(u.bank)}</td>` +
+          `<td class="cell-nowrap"><div class="badge-group">${badges.join('')}</div></td>` +
           `</tr>`
         );
       })
@@ -678,11 +715,11 @@
         const isOpen = t.status === 'open';
         return (
           `<tr>` +
-          `<td class="mono" style="font-weight:600;">${escapeHtml(t.ticketNo)}<div style="font-weight:400; font-size:10.5px; color:var(--text-muted);">${escapeHtml(t.userName)}</div></td>` +
-          `<td><span class="badge">${escapeHtml(t.category || 'umum')}</span></td>` +
-          `<td style="max-width:260px;">${escapeHtml(t.subject || t.message)}</td>` +
-          `<td><span class="badge ${isOpen ? 'warn' : 'ok'}">${escapeHtml(t.status.toUpperCase())}</span></td>` +
-          `<td>${
+          `<td class="mono cell-nowrap" style="font-weight:600;">${escapeHtml(t.ticketNo)}<div style="font-weight:400; font-size:10.5px; color:var(--text-muted);">${escapeHtml(t.userName)}</div></td>` +
+          `<td class="cell-nowrap"><span class="badge">${escapeHtml(t.category || 'umum')}</span></td>` +
+          `<td class="cell-desc">${escapeHtml(t.subject || t.message)}</td>` +
+          `<td class="cell-nowrap"><span class="badge ${isOpen ? 'warn' : 'ok'}">${escapeHtml(t.status.toUpperCase())}</span></td>` +
+          `<td class="cell-nowrap">${
             isOpen
               ? `<button type="button" class="btn btn-sm btn-close-ticket" data-ticket="${escapeHtml(t.ticketNo)}">Close</button>`
               : '-'
@@ -748,11 +785,11 @@
       .map(
         (b) =>
           `<tr>` +
-          `<td class="mono">${escapeHtml(b.name)}</td>` +
-          `<td class="mono">${formatBytes(b.bytes)}</td>` +
-          `<td class="mono" style="color:var(--text-muted);">${escapeHtml(b.sha256Short)}</td>` +
-          `<td class="mono">${escapeHtml(b.createdWib)}</td>` +
-          `<td><a class="btn btn-sm" href="/api/backups/download?file=${encodeURIComponent(b.name)}${tokenParam}">Download .db</a></td>` +
+          `<td class="mono cell-nowrap">${escapeHtml(b.name)}</td>` +
+          `<td class="mono cell-nowrap">${formatBytes(b.bytes)}</td>` +
+          `<td class="mono cell-nowrap" style="color:var(--text-muted);">${escapeHtml(b.sha256Short)}</td>` +
+          `<td class="mono cell-nowrap">${escapeHtml(b.createdWib)}</td>` +
+          `<td class="cell-nowrap"><a class="btn btn-sm" href="/api/backups/download?file=${encodeURIComponent(b.name)}${tokenParam}">Download .db</a></td>` +
           `</tr>`
       )
       .join('');
@@ -771,26 +808,30 @@
       .map(
         (l) =>
           `<tr>` +
-          `<td class="mono" style="color:var(--text-muted);">${escapeHtml(l.timeWib || '-')}</td>` +
-          `<td><span class="badge">${escapeHtml(l.category || 'system')}</span></td>` +
-          `<td class="mono">${escapeHtml(l.actorJid || l.actor_jid || '-')}</td>` +
-          `<td><span class="badge accent">${escapeHtml(l.action)}</span></td>` +
+          `<td class="mono cell-nowrap" style="color:var(--text-muted);">${escapeHtml(l.timeWib || '-')}</td>` +
+          `<td class="cell-nowrap"><span class="badge">${escapeHtml(l.category || 'system')}</span></td>` +
+          `<td class="mono cell-nowrap">${escapeHtml(l.actorJid || l.actor_jid || '-')}</td>` +
+          `<td class="cell-nowrap"><span class="badge accent">${escapeHtml(l.action)}</span></td>` +
           `<td class="mono">${escapeHtml(l.target || '-')}</td>` +
           `</tr>`
       )
       .join('');
   }
 
-  // ─── Navigation Switching ───
+  // ─── Navigation Switching (Sidebar + Mobile/Tablet Quick Tabs) ───
   async function switchView(viewName) {
     state.activeView = viewName;
-    document.querySelectorAll('.nav-btn[data-view]').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.view === viewName);
+    document.querySelectorAll('[data-view]').forEach((btn) => {
+      const isActive = btn.dataset.view === viewName;
+      btn.classList.toggle('active', isActive);
+      if (isActive && btn.classList.contains('view-tab-pill') && typeof btn.scrollIntoView === 'function') {
+        btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
     });
     document.querySelectorAll('.view-section').forEach((sec) => {
       sec.classList.toggle('hidden', sec.id !== `view-${viewName}`);
     });
-    $('sidebar').classList.remove('open');
+    setSidebarOpen(false);
 
     try {
       if (viewName === 'console') {
@@ -839,14 +880,48 @@
     $('loginThemeBtn').addEventListener('click', toggleTheme);
 
     $('mobileMenuBtn').addEventListener('click', () => {
-      $('sidebar').classList.toggle('open');
+      const isOpen = $('sidebar').classList.contains('open');
+      setSidebarOpen(!isOpen);
+    });
+
+    const closeSidebarBtn = $('sidebarCloseBtn');
+    if (closeSidebarBtn) {
+      closeSidebarBtn.addEventListener('click', () => setSidebarOpen(false));
+    }
+
+    const sidebarBackdrop = $('sidebarBackdrop');
+    if (sidebarBackdrop) {
+      sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false));
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        setSidebarOpen(false);
+        $('userDrawerBackdrop').classList.add('hidden');
+        $('confirmModalBackdrop').classList.add('hidden');
+      }
     });
 
     window.addEventListener('resize', () => {
+      if (window.innerWidth >= 1024) {
+        document.body.classList.remove('nav-locked');
+        const sidebarBackdropEl = $('sidebarBackdrop');
+        if (sidebarBackdropEl) sidebarBackdropEl.classList.remove('open');
+      }
       if (state.activeView === 'console') drawAllCharts();
     });
 
-    document.querySelectorAll('.nav-btn[data-view]').forEach((btn) => {
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(() => {
+        if (state.activeView === 'console') requestAnimationFrame(drawAllCharts);
+      });
+      ['canvasCpu', 'canvasMem', 'canvasLoop'].forEach((id) => {
+        const el = $(id);
+        if (el && el.parentElement) ro.observe(el.parentElement);
+      });
+    }
+
+    document.querySelectorAll('[data-view]').forEach((btn) => {
       btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
 
@@ -1181,6 +1256,14 @@
     });
 
     // Broadcast & Tickets View
+    const bcMsgInput = $('bcMessage');
+    const bcCharCounter = $('bcCharCount');
+    if (bcMsgInput && bcCharCounter) {
+      bcMsgInput.addEventListener('input', () => {
+        bcCharCounter.textContent = `${bcMsgInput.value.length} / 300`;
+      });
+    }
+
     $('broadcastForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {

@@ -1608,14 +1608,76 @@ async function run() {
     );
   }
 
+  // 33. Regresi Pembatasan Command Tag (hidetag & tagall Wajib Khusus Owner — Admin & Member Ditolak!)
+  const { groupCommandsByCategory } = require('../lib/menu');
+  const nonOwnerAdminJid = '6287700112233@s.whatsapp.net';
+  const regularMemberJid = '6287700998877@s.whatsapp.net';
+  const tagTestGroupJid = '120363999000111222@g.us';
+  const tagTestPayloads = [];
+
+  const tagTestSock = {
+    user: { id: '6280000000000@s.whatsapp.net' },
+    sendMessage: async (_jid, content) => {
+      tagTestPayloads.push(content);
+      return { key: { id: 'TAG_TEST_MSG' } };
+    },
+    groupMetadata: async () => ({
+      id: tagTestGroupJid,
+      subject: 'CipiSMP Tag Guard Group',
+      participants: [
+        { id: '6280000000000@s.whatsapp.net', admin: 'admin' },
+        { id: nonOwnerAdminJid, admin: 'admin' }, // Admin Grup tapi BUKAN Owner!
+        { id: regularMemberJid, admin: null },
+      ],
+    }),
+  };
+
+  for (const [callerLabel, callerJid] of [
+    ['Admin Grup Non-Owner', nonOwnerAdminJid],
+    ['Member Reguler', regularMemberJid],
+  ]) {
+    for (const rawTagCmd of ['.tagall Halo', '.everyone Halo', '.hidetag Pengumuman', '.ht Pengumuman', '.totag Tes']) {
+      tagTestPayloads.length = 0;
+      await handleIncomingMessage(tagTestSock, {
+        key: {
+          remoteJid: tagTestGroupJid,
+          participant: callerJid,
+          fromMe: false,
+          id: `TAG_${callerJid}_${rawTagCmd}`,
+        },
+        pushName: callerLabel,
+        message: { conversation: rawTagCmd },
+      });
+      const combinedText = tagTestPayloads.map((p) => p?.text || '').join('\n');
+      assert(
+        combinedText.includes('ᴋʜᴜsᴜs ᴏᴡɴᴇʀ'),
+        `${callerLabel} yang mengetik "${rawTagCmd}" wajib ditolak dengan "Khusus Owner", dapat: ${combinedText}`
+      );
+      assert(
+        !tagTestPayloads.some((p) => Array.isArray(p?.mentions) && p.mentions.length >= 2),
+        `${callerLabel} tidak boleh berhasil memicu mention massal lewat "${rawTagCmd}"`
+      );
+    }
+  }
+
+  // Pastikan di .menu member/admin non-owner, hidetag & tagall disembunyikan, sedangkan di .menu Owner muncul
+  const publicCats = groupCommandsByCategory(commands, { includeOwner: false });
+  const publicNames = publicCats.flatMap((c) => c.commands.map((cmd) => cmd.name));
+  assert(!publicNames.includes('tagall') && !publicNames.includes('hidetag'), 'tagall/hidetag wajib tersembunyi dari menu non-owner');
+
+  const ownerCats = groupCommandsByCategory(commands, { includeOwner: true });
+  const ownerNames = ownerCats.flatMap((c) => c.commands.map((cmd) => cmd.name));
+  assert(ownerNames.includes('tagall') && ownerNames.includes('hidetag'), 'tagall/hidetag wajib tampil pada menu Owner');
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/32] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/32] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [31/33] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/33] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/33] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
   console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Live Bugfix LULUS sempurna! 🌸♡ ❖');
 }
 

@@ -164,9 +164,14 @@ async function main() {
     assert.ok(html.includes('Cipi Panel'), 'index.html harus menampilkan nama Cipi Panel');
     assert.ok(html.includes('CP — Cipi Panel'), 'index.html harus menampilkan brand CP — Cipi Panel');
     assert.ok(html.includes('id="themeToggleBtn"'), 'Tombol switch Dark/Light mode harus tersedia');
+    assert.ok(html.includes('id="sidebarBackdrop"'), 'Backdrop off-canvas mobile/tablet harus tersedia');
+    assert.ok(html.includes('class="view-tabs-bar"'), 'Tab navigasi cepat tablet/mobile harus tersedia');
     assert.ok(css.includes('[data-theme="dark"]'), 'styles.css harus memiliki palet Dark Mode');
     assert.ok(css.includes('[data-theme="light"]'), 'styles.css harus memiliki palet Light Mode');
     assert.ok(css.includes('tabular-nums'), 'styles.css harus menerapkan font-variant-numeric: tabular-nums');
+    assert.ok(css.includes('@media (max-width: 1179px)'), 'styles.css harus memiliki breakpoint tablet landscape');
+    assert.ok(css.includes('@media (max-width: 1023px)'), 'styles.css harus memiliki breakpoint tablet portrait');
+    assert.ok(css.includes('@media (max-width: 767px)'), 'styles.css harus memiliki breakpoint mobile');
 
     const emojiRegex = /\p{Extended_Pictographic}/u;
     for (const [label, content] of [
@@ -300,6 +305,18 @@ async function main() {
     const cmds = await req('/api/commands');
     assert.equal(cmds.status, 200);
     assert.equal(cmds.data.commands.length, 79);
+
+    for (const tagCmdName of ['tagall', 'hidetag']) {
+      const tagCmd = cmds.data.commands.find((c) => c.name === tagCmdName);
+      assert.ok(tagCmd, `Command .${tagCmdName} harus terdaftar di katalog panel`);
+      assert.equal(tagCmd.ownerOnly, true, `.${tagCmdName} wajib ownerOnly: true`);
+      assert.equal(tagCmd.adminOnly, false, `.${tagCmdName} wajib adminOnly: false`);
+    }
+
+    for (const staticAsset of ['/styles.css', '/charts.js', '/app.js']) {
+      const assetRes = await req(staticAsset, { cookie: '' });
+      assert.equal(assetRes.status, 200, `Static asset ${staticAsset} harus disajikan HTTP 200`);
+    }
 
     const rtCfg = await req('/api/runtime/config', {
       method: 'POST',
