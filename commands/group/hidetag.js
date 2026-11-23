@@ -1,21 +1,30 @@
 const config = require('../../config');
-const { normalizeUserJid } = require('../../lib/database');
+const { normalizeUserJid, isOwner } = require('../../lib/database');
 const { formatError, mono } = require('../../lib/smallcaps');
 
 module.exports = {
   name: 'hidetag',
-  alias: ['ht', 'pengumuman'],
+  alias: ['ht', 'pengumuman', 'totag'],
   category: 'group',
-  description: 'Kirim pengumuman dengan menandai seluruh anggota grup secara tersembunyi',
+  description: 'Kirim pengumuman dengan menandai seluruh anggota grup secara tersembunyi (Khusus Owner)',
   cooldown: 8,
   groupOnly: true,
-  adminOnly: true,
-  ownerOnly: false,
+  adminOnly: false,
+  ownerOnly: true,
   premiumOnly: false,
 
   async execute(ctx) {
-    const { sock, msg, chatJid, text, quotedMessage, getCachedGroupMetadata } = ctx;
+    const { sock, msg, chatJid, senderJid, text, quotedMessage, getCachedGroupMetadata } = ctx;
     const p = config.prefix;
+
+    if (!ctx.isOwner && !isOwner(senderJid)) {
+      await ctx.reply(
+        formatError('Khusus Owner', [
+          `Command ${mono(`${p}hidetag`)} hanya bisa dijalankan oleh Owner!`,
+        ])
+      );
+      return;
+    }
 
     const quotedText =
       quotedMessage?.conversation ||
@@ -28,7 +37,7 @@ module.exports = {
     if (!contentText) {
       await ctx.reply(
         formatError('Pesan Kosong', [
-          `Ketik pesan atau balas sebuah pesan lalu ketik ${mono(`${p}hidetag <pesan>`)} ya kak ♡`,
+          `Ketik pesan atau balas sebuah pesan lalu ketik ${mono(`${p}hidetag <pesan>`)}`,
         ])
       );
       return;
@@ -38,7 +47,7 @@ module.exports = {
     if (!meta || !Array.isArray(meta.participants)) {
       await ctx.reply(
         formatError('Gagal Membaca Grup', [
-          'Data peserta grup belum berhasil diambil, coba sebentar lagi ya ♡',
+          'Data peserta grup belum berhasil diambil, coba sebentar lagi.',
         ])
       );
       return;

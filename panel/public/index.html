@@ -2,7 +2,7 @@
 <html lang="id" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>CP — Cipi Panel · Bot &amp; Resource Control</title>
   <script>
     (function () {
@@ -15,1240 +15,7 @@
       }
     })();
   </script>
-  <style id="cp-design-system">
-/* ═══════════════════════════════════════════════════════════════════════
-   Cipi Panel (CP) — Infrastructure Design System (Dark & Light Themes)
-   Pterodactyl Wings / Vercel / Linear discipline: 1px hairlines, 0% slop
-   ═══════════════════════════════════════════════════════════════════════ */
-
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/inter-latin-400-normal.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/inter-latin-500-normal.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/inter-latin-600-normal.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/jetbrains-mono-latin-600-normal.woff2') format('woff2');
-}
-
-:root,
-[data-theme="dark"] {
-  color-scheme: dark;
-  --bg-canvas: #09090b;
-  --bg-sidebar: #0c0c0f;
-  --bg-surface: #111115;
-  --bg-surface-head: #15151a;
-  --bg-elevated: #18181e;
-  --bg-hover: #202028;
-  --bg-input: #0b0b0e;
-  --bg-terminal: #07080a;
-  --bg-terminal-bar: #0d0e12;
-
-  --border-subtle: #1d1d24;
-  --border-default: #272730;
-  --border-strong: #3b3b47;
-
-  --text-primary: #f4f4f6;
-  --text-secondary: #a1a1ae;
-  --text-muted: #6e6e7c;
-
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-soft: rgba(59, 130, 246, 0.13);
-  --accent-border: rgba(59, 130, 246, 0.36);
-
-  --status-ok: #10b981;
-  --status-ok-soft: rgba(16, 185, 129, 0.12);
-  --status-ok-border: rgba(16, 185, 129, 0.32);
-
-  --status-warn: #f59e0b;
-  --status-warn-soft: rgba(245, 158, 11, 0.12);
-  --status-warn-border: rgba(245, 158, 11, 0.32);
-
-  --status-danger: #ef4444;
-  --status-danger-soft: rgba(239, 68, 68, 0.12);
-  --status-danger-border: rgba(239, 68, 68, 0.32);
-
-  --chart-grid: rgba(255, 255, 255, 0.055);
-  --chart-cpu: #3b82f6;
-  --chart-cpu-fill: rgba(59, 130, 246, 0.16);
-  --chart-mem: #10b981;
-  --chart-mem-fill: rgba(16, 185, 129, 0.15);
-  --chart-loop: #f59e0b;
-  --chart-loop-fill: rgba(245, 158, 11, 0.14);
-
-  --card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  --shadow-modal: 0 20px 48px rgba(0, 0, 0, 0.65);
-
-  --logo-bg: #15151b;
-  --logo-border: #2e2e3a;
-  --logo-fg: #fafafa;
-  --logo-accent: #3b82f6;
-}
-
-[data-theme="light"] {
-  color-scheme: light;
-  --bg-canvas: #f3f4f6;
-  --bg-sidebar: #ebedf0;
-  --bg-surface: #ffffff;
-  --bg-surface-head: #f9fafb;
-  --bg-elevated: #f3f4f6;
-  --bg-hover: #e5e7eb;
-  --bg-input: #ffffff;
-  --bg-terminal: #0c0d12;
-  --bg-terminal-bar: #13151c;
-
-  --border-subtle: #eceef2;
-  --border-default: #dcdfe5;
-  --border-strong: #c5cad3;
-
-  --text-primary: #09090b;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
-
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.09);
-  --accent-border: rgba(37, 99, 235, 0.28);
-
-  --status-ok: #059669;
-  --status-ok-soft: rgba(5, 150, 105, 0.1);
-  --status-ok-border: rgba(5, 150, 105, 0.28);
-
-  --status-warn: #d97706;
-  --status-warn-soft: rgba(217, 119, 6, 0.1);
-  --status-warn-border: rgba(217, 119, 6, 0.28);
-
-  --status-danger: #dc2626;
-  --status-danger-soft: rgba(220, 38, 38, 0.09);
-  --status-danger-border: rgba(220, 38, 38, 0.28);
-
-  --chart-grid: rgba(9, 9, 11, 0.065);
-  --chart-cpu: #2563eb;
-  --chart-cpu-fill: rgba(37, 99, 235, 0.13);
-  --chart-mem: #059669;
-  --chart-mem-fill: rgba(5, 150, 105, 0.12);
-  --chart-loop: #d97706;
-  --chart-loop-fill: rgba(217, 119, 6, 0.12);
-
-  --card-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
-  --shadow-modal: 0 18px 40px rgba(9, 9, 11, 0.14);
-
-  --logo-bg: #09090b;
-  --logo-border: #27272a;
-  --logo-fg: #ffffff;
-  --logo-accent: #3b82f6;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  min-height: 100%;
-  background: var(--bg-canvas);
-  color: var(--text-primary);
-  font-family: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.mono,
-code,
-pre,
-.tabular {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'Cascadia Code', Menlo, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-.num {
-  font-variant-numeric: tabular-nums;
-}
-
-.hidden {
-  display: none !important;
-}
-
-/* ─── Scrollbars ─── */
-::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 4px;
-}
-
-/* ─── Icons ─── */
-svg.icon {
-  width: 15px;
-  height: 15px;
-  stroke: currentColor;
-  stroke-width: 1.65;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
-  flex-shrink: 0;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-svg.icon-sm {
-  width: 13px;
-  height: 13px;
-}
-
-/* ─── CP Monogram Brand ─── */
-.cp-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  user-select: none;
-}
-
-.cp-mark {
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
-  background: var(--logo-bg);
-  border: 1px solid var(--logo-border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.cp-mark svg {
-  width: 20px;
-  height: 20px;
-  display: block;
-}
-
-.cp-brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.cp-brand-title {
-  font-weight: 600;
-  font-size: 13.5px;
-  letter-spacing: -0.015em;
-  color: var(--text-primary);
-}
-
-.cp-brand-sub {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  letter-spacing: 0.01em;
-}
-
-/* ─── Login Screen ─── */
-.auth-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: var(--bg-canvas);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 390px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: var(--shadow-modal);
-}
-
-.auth-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.auth-desc {
-  margin: 0 0 16px;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-}
-
-.auth-error {
-  margin-bottom: 12px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--status-danger-soft);
-  border: 1px solid var(--status-danger-border);
-  color: var(--status-danger);
-  font-size: 12px;
-}
-
-/* ─── App Shell ─── */
-.app-shell {
-  display: grid;
-  grid-template-columns: 236px minmax(0, 1fr);
-  min-height: 100vh;
-}
-
-.sidebar {
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border-default);
-  display: flex;
-  flex-direction: column;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-}
-
-.sidebar-top {
-  height: 53px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border-default);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sidebar-section-label {
-  padding: 16px 16px 6px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-muted);
-}
-
-.nav-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 10px;
-}
-
-.nav-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 9px;
-  padding: 7.5px 10px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
-  text-align: left;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
-}
-
-.nav-btn-left {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-}
-
-.nav-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.nav-btn.active {
-  background: var(--bg-surface);
-  border-color: var(--border-default);
-  color: var(--text-primary);
-  box-shadow: var(--card-shadow);
-}
-
-.nav-btn.active svg.icon {
-  color: var(--accent);
-}
-
-.nav-count {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  font-size: 10.5px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  color: var(--text-muted);
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  padding: 12px 14px;
-  border-top: 1px solid var(--border-default);
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.stream-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-}
-
-.stream-dot-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.led {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--text-muted);
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.led.ok {
-  background: var(--status-ok);
-  box-shadow: 0 0 0 3px var(--status-ok-soft);
-}
-
-.led.warn {
-  background: var(--status-warn);
-  box-shadow: 0 0 0 3px var(--status-warn-soft);
-}
-
-.led.danger {
-  background: var(--status-danger);
-  box-shadow: 0 0 0 3px var(--status-danger-soft);
-}
-
-/* ─── Main Workspace & Persistent Pterodactyl Header ─── */
-.workspace {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.instance-header {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  min-height: 53px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-default);
-  padding: 8px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.instance-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.mobile-menu-btn {
-  display: none;
-}
-
-.instance-title-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.breadcrumb-muted {
-  color: var(--text-muted);
-  font-size: 12.5px;
-  font-weight: 500;
-}
-
-.instance-name {
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.meta-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--border-default);
-}
-
-.meta-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 5px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-elevated);
-  font-size: 11.5px;
-  color: var(--text-secondary);
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  border: 1px solid var(--border-default);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.badge.ok {
-  background: var(--status-ok-soft);
-  border-color: var(--status-ok-border);
-  color: var(--status-ok);
-}
-
-.badge.warn {
-  background: var(--status-warn-soft);
-  border-color: var(--status-warn-border);
-  color: var(--status-warn);
-}
-
-.badge.danger {
-  background: var(--status-danger-soft);
-  border-color: var(--status-danger-border);
-  color: var(--status-danger);
-}
-
-.badge.accent {
-  background: var(--accent-soft);
-  border-color: var(--accent-border);
-  color: var(--accent);
-}
-
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.power-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px;
-  border-radius: 7px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-}
-
-/* ─── Buttons & Inputs ─── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 11px;
-  border-radius: 6px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  text-decoration: none;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
-}
-
-.btn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-
-.btn-success {
-  background: var(--status-ok-soft);
-  border-color: var(--status-ok-border);
-  color: var(--status-ok);
-}
-
-.btn-success:hover:not(:disabled) {
-  background: rgba(16, 185, 129, 0.2);
-}
-
-.btn-warn {
-  background: var(--status-warn-soft);
-  border-color: var(--status-warn-border);
-  color: var(--status-warn);
-}
-
-.btn-warn:hover:not(:disabled) {
-  background: rgba(245, 158, 11, 0.2);
-}
-
-.btn-danger {
-  background: var(--status-danger-soft);
-  border-color: var(--status-danger-border);
-  color: var(--status-danger);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.btn-icon {
-  width: 30px;
-  padding: 0;
-}
-
-.btn-sm {
-  height: 26px;
-  padding: 0 9px;
-  font-size: 11.5px;
-}
-
-.input,
-.select,
-.textarea {
-  width: 100%;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 12.5px;
-  outline: none;
-  transition: border-color 120ms ease;
-}
-
-.textarea {
-  height: auto;
-  min-height: 84px;
-  padding: 8px 10px;
-  resize: vertical;
-}
-
-.input:focus,
-.select:focus,
-.textarea:focus {
-  border-color: var(--accent);
-}
-
-.field-label {
-  display: block;
-  margin-bottom: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-/* ─── Content Container & Telemetry Strip ─── */
-.content-body {
-  padding: 18px 20px 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 1600px;
-  width: 100%;
-}
-
-.metrics-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.metric-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  padding: 13px 15px;
-  box-shadow: var(--card-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.metric-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--text-secondary);
-  font-size: 11.5px;
-  font-weight: 500;
-}
-
-.metric-icon-box {
-  width: 24px;
-  height: 24px;
-  border-radius: 5px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-}
-
-.metric-value-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.metric-value {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  color: var(--text-primary);
-}
-
-.metric-sub {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.meter-track {
-  width: 100%;
-  height: 5px;
-  background: var(--bg-elevated);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.meter-fill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 3px;
-  transition: width 260ms ease;
-}
-
-.meter-fill.ok {
-  background: var(--status-ok);
-}
-
-.meter-fill.warn {
-  background: var(--status-warn);
-}
-
-.meter-fill.danger {
-  background: var(--status-danger);
-}
-
-/* ─── Panels & Grids ─── */
-.panel-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  box-shadow: var(--card-shadow);
-  overflow: hidden;
-}
-
-.panel-head {
-  padding: 10px 14px;
-  background: var(--bg-surface-head);
-  border-bottom: 1px solid var(--border-default);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.panel-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.panel-sub {
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.panel-body {
-  padding: 14px;
-}
-
-.console-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(310px, 1fr);
-  gap: 14px;
-  align-items: stretch;
-}
-
-.charts-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.chart-box {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  padding: 11px 13px;
-  box-shadow: var(--card-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.chart-canvas-wrap {
-  width: 100%;
-  height: 104px;
-  position: relative;
-}
-
-.chart-canvas-wrap canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* ─── Pterodactyl Terminal Console ─── */
-.terminal-card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 448px;
-}
-
-.terminal-viewport {
-  flex: 1;
-  background: var(--bg-terminal);
-  color: #e4e4e7;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11.8px;
-  line-height: 1.58;
-  padding: 12px 14px;
-  overflow-y: auto;
-  max-height: 390px;
-  min-height: 330px;
-}
-
-.log-line {
-  display: flex;
-  gap: 8px;
-  padding: 1.5px 0;
-  word-break: break-word;
-}
-
-.log-ts {
-  color: #6e6e7c;
-  flex-shrink: 0;
-}
-
-.log-lvl {
-  flex-shrink: 0;
-  font-weight: 600;
-  min-width: 46px;
-  text-transform: uppercase;
-}
-
-.log-lvl.info,
-.log-lvl.INFO {
-  color: #38bdf8;
-}
-
-.log-lvl.warn,
-.log-lvl.WARN {
-  color: #fbbf24;
-}
-
-.log-lvl.error,
-.log-lvl.ERROR {
-  color: #f87171;
-}
-
-.log-lvl.debug,
-.log-lvl.DEBUG {
-  color: #a78bfa;
-}
-
-.log-lvl.cmd,
-.log-lvl.CMD {
-  color: #34d399;
-}
-
-.log-scope {
-  color: #9ca3af;
-  flex-shrink: 0;
-}
-
-.log-msg {
-  color: #f3f4f6;
-}
-
-.terminal-quick-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--bg-terminal-bar);
-  border-top: 1px solid #1f212a;
-  flex-wrap: wrap;
-}
-
-.terminal-chip {
-  height: 21px;
-  padding: 0 7px;
-  border-radius: 4px;
-  border: 1px solid #2a2d3a;
-  background: #171922;
-  color: #a1a1b5;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 10.5px;
-  cursor: pointer;
-}
-
-.terminal-chip:hover {
-  border-color: #3b82f6;
-  color: #ffffff;
-}
-
-.terminal-input-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-terminal-bar);
-  border-top: 1px solid #232632;
-}
-
-.terminal-prompt {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12px;
-  color: #3b82f6;
-  font-weight: 600;
-  user-select: none;
-}
-
-.terminal-cmd-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #fafafa;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12px;
-}
-
-/* ─── Tables ─── */
-.table-wrap {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 12.2px;
-}
-
-.data-table th {
-  padding: 8.5px 12px;
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-default);
-  white-space: nowrap;
-}
-
-.data-table td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  vertical-align: middle;
-}
-
-.data-table tbody tr:hover {
-  background: var(--bg-elevated);
-}
-
-.data-table tbody tr.clickable {
-  cursor: pointer;
-}
-
-.two-col-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.kv-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.kv-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 12.2px;
-}
-
-.kv-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.kv-key {
-  color: var(--text-secondary);
-}
-
-.kv-val {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-  text-align: right;
-}
-
-.toolbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.filter-pills {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.pill-btn {
-  height: 25px;
-  padding: 0 9px;
-  border-radius: 5px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.pill-btn:hover {
-  color: var(--text-primary);
-}
-
-.pill-btn.active {
-  background: var(--accent-soft);
-  border-color: var(--accent-border);
-  color: var(--accent);
-}
-
-/* ─── Slide-Over Drawer & Confirmation Modal ─── */
-.drawer-backdrop,
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  background: rgba(0, 0, 0, 0.58);
-  display: flex;
-  justify-content: flex-end;
-}
-
-.modal-backdrop {
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.drawer-panel {
-  width: 100%;
-  max-width: 420px;
-  height: 100%;
-  background: var(--bg-surface);
-  border-left: 1px solid var(--border-default);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  box-shadow: var(--shadow-modal);
-}
-
-.modal-card {
-  width: 100%;
-  max-width: 400px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  padding: 18px;
-  box-shadow: var(--shadow-modal);
-}
-
-.toast-stack {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 90;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 340px;
-}
-
-.toast {
-  padding: 9px 12px;
-  border-radius: 6px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-strong);
-  color: var(--text-primary);
-  font-size: 12px;
-  box-shadow: var(--shadow-modal);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toast.ok {
-  border-left: 3px solid var(--status-ok);
-}
-
-.toast.error {
-  border-left: 3px solid var(--status-danger);
-}
-
-@media (max-width: 1120px) {
-  .metrics-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .console-grid,
-  .two-col-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 840px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 240px;
-    z-index: 60;
-    transform: translateX(-100%);
-    transition: transform 160ms ease;
-  }
-  .sidebar.open {
-    transform: translateX(0);
-  }
-  .mobile-menu-btn {
-    display: inline-flex;
-  }
-  .metrics-strip {
-    grid-template-columns: 1fr;
-  }
-}
-
-  </style>
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <!-- ═══ Authentication Gate ═══ -->
@@ -1276,21 +43,24 @@ svg.icon-sm {
       <p class="auth-desc">Masukkan kredensial operator untuk mengakses kontrol instance, konsol live, dan telemetri sistem.</p>
       <div id="authError" class="auth-error hidden"></div>
       <form id="loginForm">
-        <div style="margin-bottom: 10px;">
+        <div class="auth-field">
           <label class="field-label" for="loginUsername">Operator Username</label>
           <input id="loginUsername" type="text" class="input mono" value="admin" autocomplete="username" required />
         </div>
-        <div>
+        <div class="auth-field">
           <label class="field-label" for="loginPassword">PANEL_PASSWORD / Startup PIN</label>
           <input id="loginPassword" type="password" class="input mono" placeholder="••••••••••••" autocomplete="current-password" required />
         </div>
-        <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
-          <button type="submit" class="btn btn-primary" style="width: 100%;">Authenticate Session</button>
-          <button type="button" id="btnQuickPreview" class="btn hidden" style="width: 100%;">Enter Sandbox Preview</button>
+        <div class="auth-actions">
+          <button type="submit" class="btn btn-primary btn-block">Authenticate Session</button>
+          <button type="button" id="btnQuickPreview" class="btn btn-block hidden">Enter Sandbox Preview</button>
         </div>
       </form>
     </div>
   </div>
+
+  <!-- ═══ Mobile & Tablet Sidebar Backdrop ═══ -->
+  <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
 
   <!-- ═══ Main Application Shell ═══ -->
   <div id="appShell" class="app-shell">
@@ -1309,6 +79,9 @@ svg.icon-sm {
             <span class="cp-brand-sub">CP · Bot &amp; Node Control</span>
           </div>
         </div>
+        <button type="button" id="sidebarCloseBtn" class="btn btn-icon sidebar-close-btn" aria-label="Close Navigation">
+          <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
 
       <div class="sidebar-section-label">Instance Control</div>
@@ -1375,9 +148,9 @@ svg.icon-sm {
             <span id="sseLed" class="led warn"></span>
             <span id="sseLabel">SSE Connecting</span>
           </span>
-          <span id="nodeVerLabel" class="mono" style="font-size: 11px; color: var(--text-muted);">node</span>
+          <span id="nodeVerLabel" class="mono node-ver-label">node</span>
         </div>
-        <button type="button" id="logoutBtn" class="btn btn-sm" style="width: 100%;">
+        <button type="button" id="logoutBtn" class="btn btn-sm btn-block">
           <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           <span>Sign Out Session</span>
         </button>
@@ -1386,7 +159,7 @@ svg.icon-sm {
 
     <!-- Workspace Area -->
     <div class="workspace">
-      <!-- Pterodactyl Persistent Instance Header -->
+      <!-- Persistent Instance Header -->
       <header class="instance-header">
         <div class="instance-meta">
           <button type="button" id="mobileMenuBtn" class="btn btn-icon mobile-menu-btn" aria-label="Toggle Menu">
@@ -1403,12 +176,12 @@ svg.icon-sm {
 
           <span class="meta-divider"></span>
 
-          <span class="meta-pill mono" title="Process Uptime">
+          <span class="meta-pill meta-pill-uptime mono" title="Process Uptime">
             <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span id="headerUptime">00h 00m 00s</span>
           </span>
 
-          <span class="meta-pill mono" title="Allocation Endpoint">
+          <span class="meta-pill meta-pill-endpoint mono" title="Allocation Endpoint">
             <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
             <span id="headerEndpoint">0.0.0.0:3000</span>
           </span>
@@ -1441,40 +214,84 @@ svg.icon-sm {
         </div>
       </header>
 
+      <!-- ═══ Tablet & Mobile 1-Tap Horizontal View Switcher (< 1024px) ═══ -->
+      <nav class="view-tabs-bar" aria-label="Quick View Switcher">
+        <button type="button" class="view-tab-pill active" data-view="console">
+          <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span>Console</span>
+        </button>
+        <button type="button" class="view-tab-pill" data-view="runtime">
+          <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+          <span>Runtime</span>
+          <span id="tabCmdCount" class="nav-count">79</span>
+        </button>
+        <button type="button" class="view-tab-pill" data-view="minecraft">
+          <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span>Minecraft</span>
+        </button>
+        <button type="button" class="view-tab-pill" data-view="users">
+          <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          <span>Users</span>
+          <span id="tabUserCount" class="nav-count">0</span>
+        </button>
+        <button type="button" class="view-tab-pill" data-view="comms">
+          <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Broadcast</span>
+          <span id="tabTicketCount" class="nav-count">0</span>
+        </button>
+        <button type="button" class="view-tab-pill" data-view="storage">
+          <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span>Storage</span>
+        </button>
+        <button type="button" class="view-tab-pill" data-view="audit">
+          <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Audit</span>
+        </button>
+      </nav>
+
       <main class="content-body">
-        <!-- ═══ Persistent Pterodactyl 4-Metric Resource Strip ═══ -->
+        <!-- ═══ Persistent 4-Metric Resource Strip ═══ -->
         <section class="metrics-strip" aria-label="Resource Telemetry">
           <div class="metric-card">
             <div class="metric-head">
-              <span>CPU Load (Process / Host)</span>
+              <span>
+                <span class="metric-label-full">CPU Load (Process / Host)</span>
+                <span class="metric-label-short">CPU Load</span>
+              </span>
               <span class="metric-icon-box">
                 <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               </span>
             </div>
             <div class="metric-value-row">
               <span id="metricCpuVal" class="metric-value">0.0%</span>
-              <span id="metricCpuSub" class="metric-sub">0 cores · load 0.00</span>
+              <span id="metricCpuSub" class="metric-sub">0c · load 0.00</span>
             </div>
             <div class="meter-track"><div id="meterCpu" class="meter-fill" style="width: 4%;"></div></div>
           </div>
 
           <div class="metric-card">
             <div class="metric-head">
-              <span>Memory (Node RSS / V8 Heap)</span>
+              <span>
+                <span class="metric-label-full">Memory (Node RSS / V8 Heap)</span>
+                <span class="metric-label-short">Memory RSS</span>
+              </span>
               <span class="metric-icon-box">
                 <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
               </span>
             </div>
             <div class="metric-value-row">
               <span id="metricMemVal" class="metric-value">0.0 MB</span>
-              <span id="metricMemSub" class="metric-sub">Heap 0 / 0 MB</span>
+              <span id="metricMemSub" class="metric-sub">Heap 0/0 MB</span>
             </div>
             <div class="meter-track"><div id="meterMem" class="meter-fill ok" style="width: 8%;"></div></div>
           </div>
 
           <div class="metric-card">
             <div class="metric-head">
-              <span>SQLite WAL &amp; Host Disk</span>
+              <span>
+                <span class="metric-label-full">SQLite WAL &amp; Host Disk</span>
+                <span class="metric-label-short">SQLite &amp; Disk</span>
+              </span>
               <span class="metric-icon-box">
                 <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
               </span>
@@ -1488,7 +305,10 @@ svg.icon-sm {
 
           <div class="metric-card">
             <div class="metric-head">
-              <span>Event-Loop &amp; Throughput</span>
+              <span>
+                <span class="metric-label-full">Event-Loop &amp; Throughput</span>
+                <span class="metric-label-short">Event-Loop</span>
+              </span>
               <span class="metric-icon-box">
                 <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </span>
@@ -1510,21 +330,25 @@ svg.icon-sm {
                   <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                   <span>tty0 · Live Instance Console</span>
                 </div>
-                <div class="filter-pills">
-                  <button type="button" class="pill-btn active" data-log-filter="ALL">ALL</button>
-                  <button type="button" class="pill-btn" data-log-filter="info">INFO</button>
-                  <button type="button" class="pill-btn" data-log-filter="warn">WARN</button>
-                  <button type="button" class="pill-btn" data-log-filter="error">ERROR</button>
-                  <button type="button" class="pill-btn" data-log-filter="cmd">CMD</button>
-                  <button type="button" id="btnAutoScroll" class="btn btn-sm">Auto-Scroll: ON</button>
-                  <button type="button" id="btnClearConsole" class="btn btn-sm">Clear</button>
+                <div class="console-head-tools">
+                  <div class="filter-pills">
+                    <button type="button" class="pill-btn active" data-log-filter="ALL">ALL</button>
+                    <button type="button" class="pill-btn" data-log-filter="info">INFO</button>
+                    <button type="button" class="pill-btn" data-log-filter="warn">WARN</button>
+                    <button type="button" class="pill-btn" data-log-filter="error">ERROR</button>
+                    <button type="button" class="pill-btn" data-log-filter="cmd">CMD</button>
+                  </div>
+                  <div class="badge-group">
+                    <button type="button" id="btnAutoScroll" class="btn btn-sm">Auto-Scroll: ON</button>
+                    <button type="button" id="btnClearConsole" class="btn btn-sm">Clear</button>
+                  </div>
                 </div>
               </div>
 
               <div id="terminalViewport" class="terminal-viewport" aria-live="polite"></div>
 
               <div class="terminal-quick-bar">
-                <span style="font-size: 10.5px; color: #71717a; font-family: 'JetBrains Mono', monospace;">Quick CLI:</span>
+                <span class="terminal-quick-label">Quick CLI:</span>
                 <button type="button" class="terminal-chip" data-cli-chip="status">status</button>
                 <button type="button" class="terminal-chip" data-cli-chip="mem">mem</button>
                 <button type="button" class="terminal-chip" data-cli-chip="reload">reload</button>
@@ -1534,12 +358,15 @@ svg.icon-sm {
               </div>
 
               <form id="consoleExecForm" class="terminal-input-bar">
-                <span class="terminal-prompt">container@cipi:~$</span>
+                <span class="terminal-prompt">
+                  <span class="terminal-prompt-full">container@cipi:~$</span>
+                  <span class="terminal-prompt-short">~$</span>
+                </span>
                 <input
                   id="consoleCmdInput"
                   type="text"
                   class="terminal-cmd-input"
-                  placeholder="Type CLI command (help, status, mem, reload, mode public|self, backup, checkpoint)..."
+                  placeholder="Type CLI command (help, status, mem, reload, backup)..."
                   autocomplete="off"
                 />
                 <button type="submit" class="btn btn-primary btn-sm">Send</button>
@@ -1549,7 +376,7 @@ svg.icon-sm {
             <div class="charts-stack">
               <div class="chart-box">
                 <div class="metric-head">
-                  <span>CPU Utilization (%) — 90s Window</span>
+                  <span>CPU Utilization (%) — 90s</span>
                   <span id="chartCpuLabel" class="mono">0.0%</span>
                 </div>
                 <div class="chart-canvas-wrap">
@@ -1582,27 +409,27 @@ svg.icon-sm {
 
         <!-- ═══ VIEW 2: Runtime & Commands ═══ -->
         <section id="view-runtime" class="view-section hidden">
-          <div class="two-col-grid" style="margin-bottom: 14px;">
+          <div class="two-col-grid">
             <div class="panel-card">
               <div class="panel-head">
                 <div class="panel-title">Runtime Switches &amp; WhatsApp Pairing</div>
                 <span id="runtimeWaStatusBadge" class="badge">CHECKING</span>
               </div>
-              <div class="panel-body" style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <div class="panel-body panel-body-stack">
+                <div class="switch-grid">
                   <button type="button" id="btnToggleBotMode" class="btn btn-sm">Mode: PUBLIC</button>
                   <button type="button" id="btnToggleMaint" class="btn btn-sm">Maintenance: OFF</button>
                   <button type="button" id="btnToggleDryRun" class="btn btn-sm">Dry-Run: OFF</button>
                   <button type="button" id="btnToggleButtons" class="btn btn-sm">Buttons: ON</button>
                 </div>
 
-                <div style="border-top: 1px solid var(--border-subtle); padding-top: 10px;">
+                <div class="section-divider-top">
                   <label class="field-label" for="pairingPhoneInput">Request 8-Digit WhatsApp Pairing Code</label>
-                  <form id="pairingForm" style="display: flex; gap: 8px;">
+                  <form id="pairingForm" class="inline-form">
                     <input id="pairingPhoneInput" type="text" class="input mono" placeholder="6281234567890" />
                     <button type="submit" class="btn btn-primary">Request Code</button>
                   </form>
-                  <div id="pairingResultBox" class="meta-pill mono hidden" style="margin-top: 8px; font-size: 12.5px;"></div>
+                  <div id="pairingResultBox" class="meta-pill-box mono hidden" style="margin-top: 8px;"></div>
                 </div>
               </div>
             </div>
@@ -1620,9 +447,9 @@ svg.icon-sm {
           <div class="panel-card">
             <div class="panel-head">
               <div class="panel-title">Registered Command Modules</div>
-              <div class="toolbar-row">
-                <input id="cmdSearchInput" type="search" class="input" style="width: 210px; height: 28px;" placeholder="Filter command or alias..." />
-                <select id="cmdCategorySelect" class="select" style="width: 165px; height: 28px;">
+              <div class="toolbar-controls">
+                <input id="cmdSearchInput" type="search" class="input input-compact toolbar-search" placeholder="Filter command or alias..." />
+                <select id="cmdCategorySelect" class="select select-compact toolbar-select">
                   <option value="ALL">All Categories</option>
                 </select>
               </div>
@@ -1647,7 +474,7 @@ svg.icon-sm {
 
         <!-- ═══ VIEW 3: Minecraft & Pterodactyl Wings ═══ -->
         <section id="view-minecraft" class="view-section hidden">
-          <div class="two-col-grid" style="margin-bottom: 14px;">
+          <div class="two-col-grid">
             <div class="panel-card">
               <div class="panel-head">
                 <div class="panel-title">Minecraft Server Live Probe</div>
@@ -1663,9 +490,9 @@ svg.icon-sm {
                 <div class="panel-title">Pterodactyl Wings Controls</div>
                 <span id="pteroConfigBadge" class="badge">UNCONFIGURED</span>
               </div>
-              <div class="panel-body">
-                <div id="pteroStatusKv" class="kv-list" style="margin-bottom: 12px;"></div>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <div class="panel-body panel-body-stack">
+                <div id="pteroStatusKv" class="kv-list"></div>
+                <div class="wings-actions">
                   <button type="button" class="btn btn-success ptero-power-btn" data-signal="start">Start</button>
                   <button type="button" class="btn btn-warn ptero-power-btn" data-signal="restart">Restart</button>
                   <button type="button" class="btn btn-danger ptero-power-btn" data-signal="stop">Stop</button>
@@ -1681,24 +508,24 @@ svg.icon-sm {
               <span class="panel-sub mono">Strict security whitelist enforced</span>
             </div>
             <div class="panel-body">
-              <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
+              <div class="preset-row">
                 <button type="button" class="btn btn-sm rcon-preset" data-cmd="list">list</button>
                 <button type="button" class="btn btn-sm rcon-preset" data-cmd="tps">tps</button>
                 <button type="button" class="btn btn-sm rcon-preset" data-cmd="whitelist list">whitelist list</button>
                 <button type="button" class="btn btn-sm rcon-preset" data-cmd="save-all">save-all</button>
               </div>
-              <form id="rconForm" style="display: flex; gap: 8px;">
+              <form id="rconForm" class="inline-form">
                 <input id="rconInput" type="text" class="input mono" placeholder="Enter whitelisted RCON command (e.g. list, whitelist add Player)..." required />
                 <button type="submit" class="btn btn-primary">Execute RCON</button>
               </form>
-              <pre id="rconOutput" class="mono" style="margin: 10px 0 0; padding: 10px; border-radius: 6px; background: var(--bg-terminal); color: #e4e4e7; font-size: 11.5px; min-height: 54px; white-space: pre-wrap;">Ready. Unwhitelisted commands (e.g. op, stop) are rejected with HTTP 403.</pre>
+              <pre id="rconOutput" class="mono rcon-output">Ready. Unwhitelisted commands (e.g. op, stop) are rejected with HTTP 403.</pre>
             </div>
           </div>
         </section>
 
         <!-- ═══ VIEW 4: Users & Economy ═══ -->
         <section id="view-users" class="view-section hidden">
-          <div class="metrics-strip" style="margin-bottom: 14px;">
+          <div class="metrics-strip">
             <div class="metric-card">
               <div class="metric-head"><span>Registered Users</span></div>
               <div id="econTotalUsers" class="metric-value">0</div>
@@ -1717,13 +544,13 @@ svg.icon-sm {
             </div>
           </div>
 
-          <div class="panel-card" style="margin-bottom: 14px;">
+          <div class="panel-card">
             <div class="panel-head">
               <div class="panel-title">Register / Inspect WhatsApp Account in SQLite</div>
               <span class="panel-sub">Create or open any real user record directly</span>
             </div>
             <div class="panel-body">
-              <form id="ensureUserForm" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px;">
+              <form id="ensureUserForm" class="user-register-form">
                 <input id="ensureUserPhone" type="text" class="input mono" placeholder="6281234567890" required />
                 <input id="ensureUserName" type="text" class="input" placeholder="Display Name (optional)" />
                 <button type="submit" class="btn btn-primary">Register &amp; Inspect</button>
@@ -1734,14 +561,14 @@ svg.icon-sm {
           <div class="panel-card">
             <div class="panel-head">
               <div class="panel-title">User Ledger (Click row to inspect &amp; modify)</div>
-              <div class="toolbar-row">
+              <div class="toolbar-controls">
                 <div class="filter-pills">
                   <button type="button" class="pill-btn active" data-user-filter="all">All</button>
                   <button type="button" class="pill-btn" data-user-filter="vip">VIP</button>
                   <button type="button" class="pill-btn" data-user-filter="banned">Banned</button>
                   <button type="button" class="pill-btn" data-user-filter="linked">MC Linked</button>
                 </div>
-                <input id="userSearchInput" type="search" class="input" style="width: 220px; height: 28px;" placeholder="Search phone, name, MC..." />
+                <input id="userSearchInput" type="search" class="input input-compact toolbar-search" placeholder="Search phone, name, MC..." />
               </div>
             </div>
             <div class="table-wrap">
@@ -1772,22 +599,27 @@ svg.icon-sm {
               </div>
               <div class="panel-body">
                 <form id="broadcastForm">
-                  <label class="field-label" for="bcTargetMode">Target Channel</label>
-                  <select id="bcTargetMode" class="select" style="margin-bottom: 10px;">
-                    <option value="all">All Channels (WhatsApp + Minecraft + Discord)</option>
-                    <option value="wa">WhatsApp Groups Only</option>
-                    <option value="mc">Minecraft In-Game Only</option>
-                    <option value="dc">Discord Webhook Only</option>
-                  </select>
+                  <div class="auth-field">
+                    <label class="field-label" for="bcTargetMode">Target Channel</label>
+                    <select id="bcTargetMode" class="select">
+                      <option value="all">All Channels (WhatsApp + Minecraft + Discord)</option>
+                      <option value="wa">WhatsApp Groups Only</option>
+                      <option value="mc">Minecraft In-Game Only</option>
+                      <option value="dc">Discord Webhook Only</option>
+                    </select>
+                  </div>
 
-                  <label class="field-label" for="bcMessage">Announcement Payload</label>
+                  <label class="field-label" for="bcMessage">
+                    <span>Announcement Payload</span>
+                    <span id="bcCharCount" class="field-counter">0 / 300</span>
+                  </label>
                   <textarea id="bcMessage" class="textarea" maxlength="300" placeholder="Tulis pengumuman pemeliharaan atau event server (maks 300 karakter)..." required></textarea>
 
-                  <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                  <div class="form-footer-end">
                     <button type="submit" class="btn btn-primary">Dispatch Broadcast</button>
                   </div>
                 </form>
-                <div id="bcResultInfo" class="meta-pill mono hidden" style="margin-top: 10px;"></div>
+                <div id="bcResultInfo" class="meta-pill-box mono hidden" style="margin-top: 10px;"></div>
               </div>
             </div>
 
@@ -1816,11 +648,11 @@ svg.icon-sm {
 
         <!-- ═══ VIEW 6: Backups & Storage ═══ -->
         <section id="view-storage" class="view-section hidden">
-          <div class="two-col-grid" style="margin-bottom: 14px;">
+          <div class="two-col-grid">
             <div class="panel-card">
               <div class="panel-head">
                 <div class="panel-title">SQLite WAL &amp; Directory Footprint</div>
-                <div style="display: flex; gap: 6px;">
+                <div class="panel-head-actions">
                   <button type="button" id="btnWalCheckpoint" class="btn btn-sm">Checkpoint WAL</button>
                   <button type="button" id="btnCreateBackup" class="btn btn-primary btn-sm">Create Snapshot</button>
                 </div>
@@ -1864,7 +696,7 @@ svg.icon-sm {
 
         <!-- ═══ VIEW 7: Audit & Access ═══ -->
         <section id="view-audit" class="view-section hidden">
-          <div class="panel-card" style="margin-bottom: 14px;">
+          <div class="panel-card">
             <div class="panel-head">
               <div class="panel-title">Security Posture &amp; Access Controls</div>
             </div>
@@ -1876,8 +708,8 @@ svg.icon-sm {
           <div class="panel-card">
             <div class="panel-head">
               <div class="panel-title">Administrative Audit Ledger</div>
-              <div class="toolbar-row">
-                <select id="auditCategorySelect" class="select" style="width: 170px; height: 28px;">
+              <div class="toolbar-controls">
+                <select id="auditCategorySelect" class="select select-compact toolbar-select">
                   <option value="">All Categories</option>
                   <option value="panel_auth">panel_auth</option>
                   <option value="owner_admin">owner_admin</option>
@@ -1914,12 +746,12 @@ svg.icon-sm {
         <div class="panel-title">User Account Inspector</div>
         <button type="button" id="btnCloseDrawer" class="btn btn-sm">Close</button>
       </div>
-      <div class="panel-body" style="display: flex; flex-direction: column; gap: 14px;">
+      <div class="panel-body panel-body-stack">
         <div id="drawerUserKv" class="kv-list"></div>
 
         <div class="panel-card">
           <div class="panel-head"><div class="panel-title">Sakura Coin Adjustment</div></div>
-          <div class="panel-body" style="display: flex; gap: 8px;">
+          <div class="panel-body drawer-action-row">
             <input id="drawerCoinAmount" type="number" min="1" value="10000" class="input mono" placeholder="Amount" />
             <button type="button" id="btnDrawerAddCoin" class="btn btn-success">Add</button>
             <button type="button" id="btnDrawerSubCoin" class="btn btn-warn">Deduct</button>
@@ -1928,7 +760,7 @@ svg.icon-sm {
 
         <div class="panel-card">
           <div class="panel-head"><div class="panel-title">Sakura VIP Subscription</div></div>
-          <div class="panel-body" style="display: flex; gap: 8px;">
+          <div class="panel-body drawer-action-row">
             <input id="drawerVipDuration" type="text" value="30d" class="input mono" placeholder="7d / 30d / permanen" />
             <button type="button" id="btnDrawerGrantVip" class="btn btn-primary">Grant VIP</button>
             <button type="button" id="btnDrawerRevokeVip" class="btn btn-danger">Revoke</button>
@@ -1937,11 +769,11 @@ svg.icon-sm {
 
         <div class="panel-card">
           <div class="panel-head"><div class="panel-title">Moderation Restriction</div></div>
-          <div class="panel-body" style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="panel-body panel-body-stack">
             <input id="drawerBanReason" type="text" class="input" placeholder="Ban reason (recorded in audit log)" />
-            <div style="display: flex; gap: 8px;">
-              <button type="button" id="btnDrawerBan" class="btn btn-danger" style="flex: 1;">Ban User</button>
-              <button type="button" id="btnDrawerUnban" class="btn btn-success" style="flex: 1;">Unban User</button>
+            <div class="drawer-dual-btns">
+              <button type="button" id="btnDrawerBan" class="btn btn-danger">Ban User</button>
+              <button type="button" id="btnDrawerUnban" class="btn btn-success">Unban User</button>
             </div>
           </div>
         </div>
@@ -1954,7 +786,7 @@ svg.icon-sm {
     <div class="modal-card">
       <div class="panel-title" id="confirmModalTitle" style="margin-bottom: 8px;">Confirm Action</div>
       <p id="confirmModalDesc" style="margin: 0 0 16px; color: var(--text-secondary); font-size: 12.5px;"></p>
-      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <div class="modal-actions">
         <button type="button" id="btnConfirmCancel" class="btn">Cancel</button>
         <button type="button" id="btnConfirmProceed" class="btn btn-danger">Confirm</button>
       </div>
@@ -1963,1386 +795,7 @@ svg.icon-sm {
 
   <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
-  <script id="cp-charts-engine">
-/* ═══════════════════════════════════════════════════════════════════════
-   Cipi Panel (CP) — HiDPI Real-Time Telemetry Canvas Renderer
-   Reads active theme tokens from CSS variables for Dark & Light modes
-   ═══════════════════════════════════════════════════════════════════════ */
-
-(function () {
-  function readVar(name, fallback) {
-    const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return val || fallback;
-  }
-
-  function renderTelemetryChart(canvas, values, opts = {}) {
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const targetW = Math.round(rect.width * dpr);
-    const targetH = Math.round(rect.height * dpr);
-    if (canvas.width !== targetW || canvas.height !== targetH) {
-      canvas.width = targetW;
-      canvas.height = targetH;
-    }
-
-    const ctx = canvas.getContext('2d');
-    ctx.save();
-    ctx.scale(dpr, dpr);
-
-    const w = rect.width;
-    const h = rect.height;
-    ctx.clearRect(0, 0, w, h);
-
-    const gridColor = readVar('--chart-grid', 'rgba(255,255,255,0.06)');
-    const strokeColor = readVar(opts.strokeVar || '--chart-cpu', '#3b82f6');
-    const fillColor = readVar(opts.fillVar || '--chart-cpu-fill', 'rgba(59,130,246,0.14)');
-    const mutedColor = readVar('--text-muted', '#71717a');
-
-    const padTop = 6;
-    const padBottom = 6;
-    const padLeft = 2;
-    const padRight = 36;
-    const plotW = Math.max(10, w - padLeft - padRight);
-    const plotH = Math.max(10, h - padTop - padBottom);
-
-    const pts = Array.isArray(values) && values.length > 0 ? values : [0];
-    const rawMax = Math.max(...pts, opts.minCeiling || 10);
-    const maxVal = opts.fixedMax || Math.ceil(rawMax * 1.18);
-
-    // Horizontal reference hairlines (3 divisions)
-    ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 1;
-    ctx.font = '10px "JetBrains Mono", monospace';
-    ctx.fillStyle = mutedColor;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-
-    for (let i = 0; i <= 2; i++) {
-      const ratio = i / 2;
-      const y = Math.round(padTop + plotH * ratio) + 0.5;
-      ctx.beginPath();
-      ctx.moveTo(padLeft, y);
-      ctx.lineTo(padLeft + plotW, y);
-      ctx.stroke();
-
-      const labelVal = Math.round(maxVal * (1 - ratio));
-      const unit = opts.unit || '';
-      ctx.fillText(`${labelVal}${unit}`, w - 2, y);
-    }
-
-    const maxSlots = opts.slots || 60;
-    const stepX = plotW / Math.max(1, maxSlots - 1);
-    const offsetSlots = Math.max(0, maxSlots - pts.length);
-
-    const coords = pts.map((v, idx) => {
-      const clamped = Math.max(0, Math.min(maxVal, Number(v) || 0));
-      const x = padLeft + (offsetSlots + idx) * stepX;
-      const y = padTop + plotH - (clamped / (maxVal || 1)) * plotH;
-      return { x, y };
-    });
-
-    if (coords.length === 1) {
-      coords.unshift({ x: padLeft, y: coords[0].y });
-    }
-
-    // Area fill
-    ctx.beginPath();
-    ctx.moveTo(coords[0].x, padTop + plotH);
-    for (const c of coords) {
-      ctx.lineTo(c.x, c.y);
-    }
-    ctx.lineTo(coords[coords.length - 1].x, padTop + plotH);
-    ctx.closePath();
-    ctx.fillStyle = fillColor;
-    ctx.fill();
-
-    // Crisp 1.6px signal line
-    ctx.beginPath();
-    coords.forEach((c, i) => {
-      if (i === 0) ctx.moveTo(c.x, c.y);
-      else ctx.lineTo(c.x, c.y);
-    });
-    ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = 1.6;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-
-    // Terminal live dot on latest point
-    const last = coords[coords.length - 1];
-    ctx.beginPath();
-    ctx.arc(last.x, last.y, 2.6, 0, Math.PI * 2);
-    ctx.fillStyle = strokeColor;
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  window.CipiCharts = {
-    renderTelemetryChart,
-  };
-})();
-
-  </script>
-  <script id="cp-app-controller">
-/* ═══════════════════════════════════════════════════════════════════════
-   Cipi Panel (CP) — Production Client Controller (100% Real Backend)
-   Zero dummy data — connects exclusively to live Node/OS/SQLite API & SSE
-   ═══════════════════════════════════════════════════════════════════════ */
-
-(function () {
-  const state = {
-    token: '',
-    authenticated: false,
-    sandboxPreview: false,
-    activeView: 'console',
-    overview: null,
-    telemetryHistory: [],
-    consoleEntries: [],
-    logFilter: 'ALL',
-    autoScroll: true,
-    cmdHistory: [],
-    cmdHistoryIdx: -1,
-    commandsCatalog: [],
-    userFilter: 'all',
-    userSearch: '',
-    selectedUser: null,
-    sse: null,
-    confirmCallback: null,
-  };
-
-  try {
-    state.token = sessionStorage.getItem('cp-token') || '';
-  } catch {
-    state.token = '';
-  }
-
-  const $ = (id) => document.getElementById(id);
-
-  function saveToken(tok) {
-    state.token = tok || '';
-    try {
-      if (state.token) sessionStorage.setItem('cp-token', state.token);
-      else sessionStorage.removeItem('cp-token');
-    } catch {
-      // Ignore sandboxed storage errors
-    }
-  }
-
-  // ─── Formatting Utilities ───
-  function formatBytes(bytes) {
-    const n = Number(bytes) || 0;
-    if (n < 1024) return `${n} B`;
-    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-    if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(2)} MB`;
-    return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  }
-
-  function formatNumber(n) {
-    return Number(n || 0).toLocaleString('id-ID');
-  }
-
-  function formatUptime(sec) {
-    const s = Math.max(0, Math.floor(Number(sec) || 0));
-    const d = Math.floor(s / 86400);
-    const h = Math.floor((s % 86400) / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const rem = s % 60;
-    const pad = (v) => String(v).padStart(2, '0');
-    return d > 0 ? `${d}d ${pad(h)}h ${pad(m)}m` : `${pad(h)}h ${pad(m)}m ${pad(rem)}s`;
-  }
-
-  function formatTimeShort(entry) {
-    if (entry?.ts) {
-      const m = String(entry.ts).match(/(\d{2}:\d{2}:\d{2})/);
-      if (m) return m[1];
-    }
-    const d = new Date(Number(entry?.epoch) || Date.now());
-    return d.toTimeString().slice(0, 8);
-  }
-
-  function escapeHtml(str) {
-    return String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function toast(msg, kind = 'ok') {
-    const stack = $('toastStack');
-    if (!stack) return;
-    const el = document.createElement('div');
-    el.className = `toast ${kind}`;
-    el.textContent = msg;
-    stack.appendChild(el);
-    setTimeout(() => {
-      el.remove();
-    }, 3400);
-  }
-
-  function askConfirm(title, desc, onProceed) {
-    $('confirmModalTitle').textContent = title;
-    $('confirmModalDesc').textContent = desc;
-    state.confirmCallback = onProceed;
-    $('confirmModalBackdrop').classList.remove('hidden');
-  }
-
-  // ─── Theme Management (Dark Mode & Light Mode) ───
-  function getActiveTheme() {
-    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-  }
-
-  function syncThemeControls() {
-    const isLight = getActiveTheme() === 'light';
-    const label = $('themeModeLabel');
-    if (label) label.textContent = isLight ? 'Light' : 'Dark';
-
-    document.querySelectorAll('.theme-icon-moon').forEach((el) => el.classList.toggle('hidden', isLight));
-    document.querySelectorAll('.theme-icon-sun').forEach((el) => el.classList.toggle('hidden', !isLight));
-  }
-
-  function toggleTheme() {
-    const next = getActiveTheme() === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
-    try {
-      localStorage.setItem('cp-theme', next);
-    } catch {
-      // Ignore storage restrictions
-    }
-    syncThemeControls();
-    drawAllCharts();
-  }
-
-  // ─── API Helper (Bearer + Same-Origin Cookie) ───
-  async function api(url, opts = {}) {
-    const headers = { ...(opts.headers || {}) };
-    if (state.token) {
-      headers.Authorization = `Bearer ${state.token}`;
-    }
-    const fetchOpts = {
-      method: opts.method || 'GET',
-      headers,
-      credentials: 'same-origin',
-    };
-    if (opts.body !== undefined) {
-      headers['Content-Type'] = 'application/json';
-      fetchOpts.body = JSON.stringify(opts.body);
-    }
-
-    const res = await fetch(url, fetchOpts);
-    const data = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
-    if (res.status === 401 && url !== '/api/auth/login') {
-      saveToken('');
-      showAuthGate();
-      throw new Error(data.error || 'Sesi berakhir, silakan login ulang.');
-    }
-    if (!res.ok || data.ok === false) {
-      throw new Error(data.error || data.output || `Request failed (${res.status})`);
-    }
-    return data;
-  }
-
-  // ─── Auth Gate ───
-  function showAuthGate() {
-    if (state.sse) {
-      state.sse.close();
-      state.sse = null;
-    }
-    $('btnQuickPreview').classList.toggle('hidden', !state.sandboxPreview);
-    $('authOverlay').classList.remove('hidden');
-  }
-
-  function hideAuthGate() {
-    $('authOverlay').classList.add('hidden');
-  }
-
-  async function checkSessionAndBoot() {
-    syncThemeControls();
-
-    if (window.location.protocol === 'about:' || window.location.protocol === 'file:' || window.location.protocol === 'blob:') {
-      $('sseLed').className = 'led danger';
-      $('sseLabel').textContent = 'Static File';
-      $('terminalViewport').innerHTML =
-        `<div class="log-line"><span class="log-lvl warn">WARN</span><span class="log-scope">[VIEWER]</span>` +
-        `<span class="log-msg">File index.html sedang dibuka sebagai file statis tanpa koneksi daemon. Buka tab Live Preview "Cipi Panel" (Port 3000) untuk terhubung ke proses Node.js, SQLite WAL, dan SSE real-time.</span></div>`;
-      return;
-    }
-
-    try {
-      const headers = state.token ? { Authorization: `Bearer ${state.token}` } : {};
-      const res = await fetch('/api/auth/status', { headers, credentials: 'same-origin' });
-      const st = await res.json();
-      state.sandboxPreview = Boolean(st.sandboxPreview);
-
-      if (!st.authenticated) {
-        if (state.sandboxPreview) {
-          const quick = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({ quickPreview: true }),
-          });
-          if (quick.ok) {
-            const qData = await quick.json();
-            if (qData.token) saveToken(qData.token);
-            hideAuthGate();
-            await initializeDashboard();
-            return;
-          }
-        }
-        showAuthGate();
-        return;
-      }
-
-      hideAuthGate();
-      await initializeDashboard();
-    } catch (err) {
-      $('sseLed').className = 'led danger';
-      $('sseLabel').textContent = 'Daemon Offline';
-      toast(`Tidak dapat menghubungi daemon Cipi Panel: ${err.message}`, 'error');
-    }
-  }
-
-  // ─── Telemetry & Charts Rendering ───
-  function meterSeverity(pct) {
-    if (pct >= 85) return 'danger';
-    if (pct >= 65) return 'warn';
-    return 'ok';
-  }
-
-  function updateMetricsStrip(sample) {
-    if (!sample) return;
-
-    $('headerUptime').textContent = formatUptime(sample.runtime?.processUptimeSec || 0);
-
-    const cpuPct = Number(sample.cpu?.processPct || 0);
-    const load1m = Array.isArray(sample.cpu?.loadAvg) ? sample.cpu.loadAvg[0] : 0;
-    $('metricCpuVal').textContent = `${cpuPct.toFixed(1)}%`;
-    $('metricCpuSub').textContent = `${sample.cpu?.cores || 1} cores · load ${Number(load1m || 0).toFixed(2)}`;
-    const meterCpu = $('meterCpu');
-    meterCpu.style.width = `${Math.max(3, Math.min(100, cpuPct))}%`;
-    meterCpu.className = `meter-fill ${meterSeverity(cpuPct)}`;
-
-    const rssMb = Number(sample.memory?.rssMb || 0);
-    const heapUsed = Number(sample.memory?.heapUsedMb || 0);
-    const heapTotal = Number(sample.memory?.heapTotalMb || 1);
-    const osMemPct = Number(sample.memory?.osMemPct || 0);
-    $('metricMemVal').textContent = `${rssMb.toFixed(1)} MB`;
-    $('metricMemSub').textContent = `Heap ${heapUsed.toFixed(0)}/${heapTotal.toFixed(0)} MB`;
-    const meterMem = $('meterMem');
-    meterMem.style.width = `${Math.max(5, Math.min(100, osMemPct))}%`;
-    meterMem.className = `meter-fill ${meterSeverity(osMemPct)}`;
-
-    const loopMs = Number(sample.runtime?.eventLoopMs || 0);
-    $('metricLoopVal').textContent = `${loopMs.toFixed(2)} ms`;
-    $('metricLoopSub').textContent = `${sample.runtime?.cmdPerMin || 0} cmds/min`;
-    const loopPct = Math.min(100, (loopMs / 50) * 100);
-    const meterLoop = $('meterLoop');
-    meterLoop.style.width = `${Math.max(4, loopPct)}%`;
-    meterLoop.className = `meter-fill ${meterSeverity(loopPct)}`;
-
-    $('chartCpuLabel').textContent = `${cpuPct.toFixed(1)}%`;
-    $('chartMemLabel').textContent = `${rssMb.toFixed(1)} MB`;
-    $('chartLoopLabel').textContent = `${loopMs.toFixed(2)} ms`;
-
-    const storage = sample.storage;
-    if (storage) {
-      const diskPct = Number(storage.diskUsedPct || 0);
-      $('metricDiskVal').textContent = formatBytes(storage.dbBytes || 0);
-      $('metricDiskSub').textContent =
-        diskPct > 0 ? `Host disk ${diskPct}%` : `Backups ${formatBytes(storage.backupsBytes || 0)}`;
-      const meterDisk = $('meterDisk');
-      meterDisk.style.width = `${Math.max(5, Math.min(100, diskPct || 10))}%`;
-      meterDisk.className = `meter-fill ${meterSeverity(diskPct)}`;
-    }
-  }
-
-  function drawAllCharts() {
-    if (!window.CipiCharts || state.activeView !== 'console') return;
-    const hist = state.telemetryHistory;
-    const cpuSeries = hist.map((s) => s.cpu?.processPct || 0);
-    const memSeries = hist.map((s) => s.memory?.rssMb || 0);
-    const loopSeries = hist.map((s) => s.runtime?.eventLoopMs || 0);
-
-    window.CipiCharts.renderTelemetryChart($('canvasCpu'), cpuSeries, {
-      strokeVar: '--chart-cpu',
-      fillVar: '--chart-cpu-fill',
-      minCeiling: 25,
-      unit: '%',
-    });
-    window.CipiCharts.renderTelemetryChart($('canvasMem'), memSeries, {
-      strokeVar: '--chart-mem',
-      fillVar: '--chart-mem-fill',
-      minCeiling: 140,
-      unit: 'M',
-    });
-    window.CipiCharts.renderTelemetryChart($('canvasLoop'), loopSeries, {
-      strokeVar: '--chart-loop',
-      fillVar: '--chart-loop-fill',
-      minCeiling: 5,
-      unit: 'ms',
-    });
-  }
-
-  // ─── Console Stream Rendering ───
-  function renderConsoleLines() {
-    const vp = $('terminalViewport');
-    if (!vp) return;
-
-    const filtered =
-      state.logFilter === 'ALL'
-        ? state.consoleEntries
-        : state.consoleEntries.filter((e) => String(e.level).toLowerCase() === state.logFilter);
-
-    vp.innerHTML = filtered
-      .map(
-        (entry) =>
-          `<div class="log-line">` +
-          `<span class="log-ts">${escapeHtml(formatTimeShort(entry))}</span>` +
-          `<span class="log-lvl ${escapeHtml(entry.level)}">${escapeHtml(entry.level)}</span>` +
-          `<span class="log-scope">[${escapeHtml(entry.scope)}]</span>` +
-          `<span class="log-msg">${escapeHtml(entry.message)}</span>` +
-          `</div>`
-      )
-      .join('');
-
-    if (state.autoScroll) {
-      vp.scrollTop = vp.scrollHeight;
-    }
-  }
-
-  function appendConsoleEntry(entry) {
-    state.consoleEntries.push(entry);
-    if (state.consoleEntries.length > 300) state.consoleEntries.shift();
-    if (state.activeView === 'console') renderConsoleLines();
-  }
-
-  // ─── SSE Real-Time Connection ───
-  function connectSseStream() {
-    if (state.sse) state.sse.close();
-
-    const sseUrl = state.token
-      ? `/api/stream?token=${encodeURIComponent(state.token)}`
-      : '/api/stream';
-    const es = new EventSource(sseUrl);
-    state.sse = es;
-
-    es.onopen = () => {
-      $('sseLed').className = 'led ok';
-      $('sseLabel').textContent = 'SSE Live (1.5s)';
-    };
-
-    es.addEventListener('init', (ev) => {
-      try {
-        const data = JSON.parse(ev.data);
-        if (data.overview) applyOverviewData(data.overview);
-        if (Array.isArray(data.telemetryHistory)) {
-          state.telemetryHistory = data.telemetryHistory;
-          const last = state.telemetryHistory[state.telemetryHistory.length - 1];
-          if (last) updateMetricsStrip(last);
-          drawAllCharts();
-        }
-        if (Array.isArray(data.consoleBuffer)) {
-          state.consoleEntries = data.consoleBuffer;
-          renderConsoleLines();
-        }
-      } catch {
-        // Ignore malformed frame
-      }
-    });
-
-    es.addEventListener('telemetry', (ev) => {
-      try {
-        const sample = JSON.parse(ev.data);
-        state.telemetryHistory.push(sample);
-        if (state.telemetryHistory.length > 60) state.telemetryHistory.shift();
-        updateMetricsStrip(sample);
-        drawAllCharts();
-      } catch {
-        // Ignore
-      }
-    });
-
-    es.addEventListener('console', (ev) => {
-      try {
-        const entry = JSON.parse(ev.data);
-        appendConsoleEntry(entry);
-      } catch {
-        // Ignore
-      }
-    });
-
-    es.onerror = () => {
-      $('sseLed').className = 'led warn';
-      $('sseLabel').textContent = 'Reconnecting...';
-    };
-  }
-
-  function updateWaBadge(wa, op) {
-    if (wa) {
-      const status = String(wa.status || 'offline').toLowerCase();
-      const badge = $('waBadge');
-      const runtimeBadge = $('runtimeWaStatusBadge');
-      const led = $('instanceLed');
-
-      if (status === 'online') {
-        badge.className = 'badge ok';
-        badge.textContent = 'WA ONLINE';
-        runtimeBadge.className = 'badge ok';
-        runtimeBadge.textContent = wa.botJid ? `ONLINE · ${wa.botJid}` : 'ONLINE';
-        led.className = 'led ok';
-      } else if (status === 'unlinked') {
-        badge.className = 'badge warn';
-        badge.textContent = 'WA UNLINKED';
-        runtimeBadge.className = 'badge warn';
-        runtimeBadge.textContent = 'NO SESSION (PAIRING NEEDED)';
-        led.className = 'led ok';
-      } else if (status === 'session_saved' || status === 'pairing' || status === 'connecting' || status === 'standalone') {
-        badge.className = 'badge warn';
-        badge.textContent = status.replace('_', ' ').toUpperCase();
-        runtimeBadge.className = 'badge warn';
-        runtimeBadge.textContent = wa.botJid ? `${status.toUpperCase()} · ${wa.botJid}` : status.toUpperCase();
-        led.className = 'led ok';
-      } else {
-        badge.className = 'badge danger';
-        badge.textContent = 'WA OFFLINE';
-        runtimeBadge.className = 'badge danger';
-        runtimeBadge.textContent = 'OFFLINE';
-        led.className = 'led danger';
-      }
-
-      if (wa.pairingCode) {
-        const box = $('pairingResultBox');
-        box.classList.remove('hidden');
-        box.textContent = `Pairing Code: ${wa.pairingCode}`;
-      }
-    }
-
-    if (op) {
-      const modeBadge = $('modeBadge');
-      const curMode = op.botMode || op.mode || 'public';
-      if (op.maintenance) {
-        modeBadge.className = 'badge warn';
-        modeBadge.textContent = 'MAINTENANCE';
-      } else if (curMode === 'self') {
-        modeBadge.className = 'badge accent';
-        modeBadge.textContent = 'SELF MODE';
-      } else {
-        modeBadge.className = 'badge';
-        modeBadge.textContent = 'PUBLIC';
-      }
-
-      $('btnToggleBotMode').textContent = `Mode: ${curMode.toUpperCase()}`;
-      $('btnToggleMaint').textContent = `Maintenance: ${op.maintenance ? 'ON' : 'OFF'}`;
-      $('btnToggleDryRun').textContent = `Dry-Run: ${op.dryRun ? 'ON' : 'OFF'}`;
-      $('btnToggleButtons').textContent = `Buttons: ${op.useButtons ? 'ON' : 'OFF'}`;
-    }
-  }
-
-  function applyOverviewData(ov) {
-    if (!ov) return;
-    state.overview = ov;
-
-    $('headerBotName').textContent = ov.instance.name;
-    $('headerEndpoint').textContent = ov.instance.bind;
-    $('nodeVerLabel').textContent = ov.host.nodeVersion;
-
-    $('navCmdCount').textContent = ov.instance.commands?.commandsCount || 0;
-    $('navUserCount').textContent = ov.counts?.users || 0;
-    $('navTicketCount').textContent = ov.counts?.openTickets || 0;
-
-    updateWaBadge(ov.instance.wa, ov.instance.operational);
-    if (ov.telemetry) updateMetricsStrip(ov.telemetry);
-
-    const envRows = [
-      ['Bot Name / Prefix', `${ov.instance.name} (${ov.instance.prefix})`],
-      ['SQLite Driver', ov.instance.sqliteDriver],
-      ['Card Renderer', ov.instance.cardEngine],
-      ['Node.js / PID', `${ov.host.nodeVersion} · PID ${ov.host.pid}`],
-      ['Host OS', `${ov.host.hostname} · ${ov.host.platform}`],
-      ['CPU Hardware', `${ov.host.cpuModel} (${ov.host.cpuCores} cores)`],
-      ['Loaded Commands', `${ov.instance.commands.commandsCount} primary (${ov.instance.commands.aliasesCount} aliases)`],
-    ];
-    $('runtimeEnvKv').innerHTML = envRows
-      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
-      .join('');
-
-    const secRows = [
-      ['Session Signature', 'HMAC-SHA256 Signed Token (Bearer + HttpOnly)'],
-      ['Brute-Force Protection', 'Active (6 failed attempts / 60s per IP -> HTTP 429)'],
-      ['Secret Redaction Filter', 'Active (API keys, RCON, Discord & Panel secrets -> [REDACTED])'],
-      ['Owner Numbers (.env)', ov.integrations.ownerConfigured ? `${ov.integrations.ownerCount} number(s) configured` : 'Not Set in .env (OWNER_NUMBERS empty)'],
-      ['Minecraft RCON Policy', 'Strict Prefix Whitelist (blocks op / stop / deop with HTTP 403)'],
-      ['AI Provider Integration', `${ov.integrations.aiProvider} (${ov.integrations.aiKeyConfigured ? 'Key Set' : 'No Key in .env'})`],
-      ['Discord Integration', ov.integrations.discordWebhookConfigured || ov.integrations.discordBotConfigured ? 'Configured' : 'Not Set in .env'],
-    ];
-    $('securityPostureKv').innerHTML = secRows
-      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
-      .join('');
-  }
-
-  async function loadOverview() {
-    const res = await api('/api/overview');
-    applyOverviewData(res.overview);
-    if (Array.isArray(res.telemetryHistory) && res.telemetryHistory.length) {
-      state.telemetryHistory = res.telemetryHistory;
-      drawAllCharts();
-    }
-  }
-
-  async function loadCommandsView() {
-    const data = await api('/api/commands');
-    state.commandsCatalog = data.commands || [];
-    $('navCmdCount').textContent = state.commandsCatalog.length;
-
-    const categories = Array.from(new Set(state.commandsCatalog.map((c) => c.category))).sort();
-    const sel = $('cmdCategorySelect');
-    const prev = sel.value || 'ALL';
-    sel.innerHTML =
-      `<option value="ALL">All Categories (${state.commandsCatalog.length})</option>` +
-      categories.map((cat) => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
-    sel.value = categories.includes(prev) ? prev : 'ALL';
-
-    renderCommandsTable();
-  }
-
-  function renderCommandsTable() {
-    const q = ($('cmdSearchInput').value || '').trim().toLowerCase();
-    const cat = $('cmdCategorySelect').value || 'ALL';
-
-    const rows = state.commandsCatalog.filter((c) => {
-      if (cat !== 'ALL' && c.category !== cat) return false;
-      if (!q) return true;
-      return (
-        c.name.toLowerCase().includes(q) ||
-        (c.aliases || []).some((a) => a.toLowerCase().includes(q)) ||
-        (c.description || '').toLowerCase().includes(q)
-      );
-    });
-
-    $('cmdTableBody').innerHTML = rows
-      .map((c) => {
-        const scopes = [];
-        if (c.ownerOnly) scopes.push('<span class="badge danger">Owner</span>');
-        if (c.adminOnly) scopes.push('<span class="badge warn">Admin</span>');
-        if (c.premiumOnly) scopes.push('<span class="badge accent">VIP</span>');
-        if (c.groupOnly) scopes.push('<span class="badge">Group</span>');
-        if (!scopes.length) scopes.push('<span class="badge ok">Public</span>');
-
-        return (
-          `<tr>` +
-          `<td class="mono" style="font-weight:600;">.${escapeHtml(c.name)}</td>` +
-          `<td class="mono" style="color:var(--text-muted);">${escapeHtml((c.aliases || []).slice(0, 4).join(', ') || '-')}</td>` +
-          `<td><span class="badge">${escapeHtml(c.category)}</span></td>` +
-          `<td class="mono">${c.cooldown}s</td>` +
-          `<td style="display:flex; gap:4px; flex-wrap:wrap;">${scopes.join('')}</td>` +
-          `<td style="color:var(--text-secondary);">${escapeHtml(c.description)}</td>` +
-          `</tr>`
-        );
-      })
-      .join('');
-  }
-
-  async function loadMinecraftView() {
-    $('mcStatusKv').innerHTML = `<div class="kv-row"><span class="kv-key">Probe</span><span class="kv-val">Querying Minecraft endpoint...</span></div>`;
-    const data = await api('/api/minecraft');
-
-    const st = data.status || {};
-    const mcRows = [
-      ['Server Endpoint', `${data.host}:${data.port} (Bedrock :${data.bedrockPort})`],
-      ['Network State', st.online ? `ONLINE (${st.playersOnline}/${st.playersMax} players)` : 'OFFLINE / Unreachable from current network'],
-      ['Engine / Version', st.version || '-'],
-      ['Probe Source', st.sourceApi || '-'],
-      ['Linked Accounts', `${(data.linkedPlayers || []).length} players in SQLite`],
-    ];
-    $('mcStatusKv').innerHTML = mcRows
-      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
-      .join('');
-
-    const pBadge = $('pteroConfigBadge');
-    if (data.pteroConfigured) {
-      pBadge.className = 'badge ok';
-      pBadge.textContent = 'WINGS LINKED';
-    } else {
-      pBadge.className = 'badge warn';
-      pBadge.textContent = 'ENV NOT SET';
-    }
-
-    const pr = data.pteroResources || {};
-    const pRows = [
-      ['Pterodactyl Client API', data.pteroConfigured ? 'Configured' : 'Set PTERO_PANEL_URL & PTERO_CLIENT_API_KEY in .env'],
-      ['Direct RCON Socket', data.rconConfigured ? 'Configured' : 'Not Set in .env'],
-      ['Wings Container State', pr.state || '-'],
-      ['Wings CPU / RAM', pr.cpuAbsolute !== undefined ? `${pr.cpuAbsolute}% / ${pr.memoryMb || 0} MB` : '-'],
-    ];
-    $('pteroStatusKv').innerHTML = pRows
-      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
-      .join('');
-  }
-
-  async function loadUsersView() {
-    const params = new URLSearchParams({
-      filter: state.userFilter,
-      q: state.userSearch,
-      pageSize: '80',
-    });
-    const [listData, ovRes] = await Promise.all([api(`/api/users?${params}`), api('/api/overview')]);
-    applyOverviewData(ovRes.overview);
-
-    const counts = ovRes.overview.counts || {};
-    $('econTotalUsers').textContent = formatNumber(counts.users);
-    $('econVipUsers').textContent = formatNumber(counts.activeVip);
-    $('econLinkedMc').textContent = formatNumber(counts.linkedMc);
-    $('econBannedUsers').textContent = formatNumber(counts.banned);
-
-    const tbody = $('usersTableBody');
-    if (!listData.users.length) {
-      tbody.innerHTML =
-        `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">` +
-        `Database SQLite belum memiliki user terdaftar. User otomatis tercatat saat mengirim chat ke bot, atau daftarkan nomor secara manual di kolom atas.` +
-        `</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = listData.users
-      .map((u) => {
-        const badges = [];
-        if (u.isBanned) badges.push('<span class="badge danger">BANNED</span>');
-        if (u.isVip) badges.push('<span class="badge accent">VIP</span>');
-        if (!badges.length) badges.push('<span class="badge ok">ACTIVE</span>');
-
-        return (
-          `<tr class="clickable" data-user-jid="${escapeHtml(u.jid)}">` +
-          `<td><div style="font-weight:500;">${escapeHtml(u.name)}</div><div class="mono" style="font-size:11px; color:var(--text-muted);">+${escapeHtml(u.phone)}</div></td>` +
-          `<td class="mono">${escapeHtml(u.mcUsername || '-')}</td>` +
-          `<td class="mono">Lv.${u.level} <span style="color:var(--text-muted);">(${formatNumber(u.xp)} XP)</span></td>` +
-          `<td class="mono">${formatNumber(u.balance)}</td>` +
-          `<td class="mono">${formatNumber(u.bank)}</td>` +
-          `<td>${badges.join(' ')}</td>` +
-          `</tr>`
-        );
-      })
-      .join('');
-
-    tbody.querySelectorAll('tr[data-user-jid]').forEach((row) => {
-      row.addEventListener('click', () => {
-        const found = listData.users.find((x) => x.jid === row.dataset.userJid);
-        if (found) openUserDrawer(found);
-      });
-    });
-  }
-
-  function openUserDrawer(user) {
-    state.selectedUser = user;
-    const rows = [
-      ['Display Name', user.name],
-      ['WhatsApp JID', user.jid],
-      ['Minecraft IGN', user.mcUsername || '-'],
-      ['Wallet Coins', formatNumber(user.balance)],
-      ['Bank Vault', formatNumber(user.bank)],
-      ['Gacha Shards', formatNumber(user.shards)],
-      ['Level / XP', `Lv.${user.level} (${formatNumber(user.xp)} XP)`],
-      ['Sakura VIP', user.isVip ? `Active until ${user.vipExpiresWib}` : 'Standard'],
-      ['Moderation', user.isBanned ? `BANNED (${user.banReason || 'Restricted'})` : 'Good Standing'],
-    ];
-    $('drawerUserKv').innerHTML = rows
-      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
-      .join('');
-    $('userDrawerBackdrop').classList.remove('hidden');
-  }
-
-  async function loadCommsView() {
-    const data = await api('/api/community');
-    const tbody = $('ticketsTableBody');
-    if (!data.tickets.length) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:18px;">Belum ada tiket masuk (.lapor) di SQLite.</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = data.tickets
-      .map((t) => {
-        const isOpen = t.status === 'open';
-        return (
-          `<tr>` +
-          `<td class="mono" style="font-weight:600;">${escapeHtml(t.ticketNo)}<div style="font-weight:400; font-size:10.5px; color:var(--text-muted);">${escapeHtml(t.userName)}</div></td>` +
-          `<td><span class="badge">${escapeHtml(t.category || 'umum')}</span></td>` +
-          `<td style="max-width:260px;">${escapeHtml(t.subject || t.message)}</td>` +
-          `<td><span class="badge ${isOpen ? 'warn' : 'ok'}">${escapeHtml(t.status.toUpperCase())}</span></td>` +
-          `<td>${
-            isOpen
-              ? `<button type="button" class="btn btn-sm btn-close-ticket" data-ticket="${escapeHtml(t.ticketNo)}">Close</button>`
-              : '-'
-          }</td>` +
-          `</tr>`
-        );
-      })
-      .join('');
-
-    tbody.querySelectorAll('.btn-close-ticket').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        try {
-          await api('/api/tickets/close', {
-            method: 'POST',
-            body: { ticketNo: btn.dataset.ticket, resolution: 'Resolved via Cipi Panel' },
-          });
-          toast(`Ticket ${btn.dataset.ticket} closed`);
-          await loadCommsView();
-          await loadOverview();
-        } catch (err) {
-          toast(err.message, 'error');
-        }
-      });
-    });
-  }
-
-  async function loadStorageView() {
-    const data = await api('/api/backups');
-    const st = data.storage || {};
-    $('backupRotationSub').textContent = `Schedule: ${data.cronSchedule} WIB · Keep last ${data.keepLast}`;
-
-    const breakdown = [
-      ['SQLite Primary (.db)', formatBytes(st.dbPrimaryBytes ?? st.dbBytes)],
-      ['SQLite Write-Ahead Log (-wal)', formatBytes(st.walBytes || 0)],
-      ['SQLite Shared Memory (-shm)', formatBytes(st.shmBytes || 0)],
-      ['Snapshot Archives (backups/)', `${formatBytes(st.backupsBytes)} (${st.backupsCount || 0} files)`],
-      ['Baileys Auth State (session/)', `${formatBytes(st.sessionBytes)} (${st.sessionFiles || 0} files)`],
-      ['Rotating Logs (logs/)', formatBytes(st.logsBytes)],
-    ];
-    $('storageBreakdownKv').innerHTML = breakdown
-      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
-      .join('');
-
-    const totalRows = (data.tables || []).reduce((acc, t) => acc + Number(t.rows || 0), 0);
-    const fsRows = [
-      ['Host Filesystem Used', st.diskTotalBytes ? `${formatBytes(st.diskUsedBytes)} / ${formatBytes(st.diskTotalBytes)} (${st.diskUsedPct}%)` : 'N/A'],
-      ['Host Filesystem Free', st.diskFreeBytes ? formatBytes(st.diskFreeBytes) : 'N/A'],
-      ['SQLite Total Records', `${formatNumber(totalRows)} rows across ${(data.tables || []).length} tables`],
-      ['Active Database File', st.dbPath ? st.dbPath.split('/').slice(-2).join('/') : 'database/cipismp.db'],
-    ];
-    $('filesystemKv').innerHTML = fsRows
-      .map(([k, v]) => `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(v)}</span></div>`)
-      .join('');
-
-    const tbody = $('backupsTableBody');
-    if (!data.backups.length) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada snapshot di folder backups/. Klik "Create Snapshot" di atas untuk membuat backup SQLite.</td></tr>`;
-      return;
-    }
-
-    const tokenParam = state.token ? `&token=${encodeURIComponent(state.token)}` : '';
-    tbody.innerHTML = data.backups
-      .map(
-        (b) =>
-          `<tr>` +
-          `<td class="mono">${escapeHtml(b.name)}</td>` +
-          `<td class="mono">${formatBytes(b.bytes)}</td>` +
-          `<td class="mono" style="color:var(--text-muted);">${escapeHtml(b.sha256Short)}</td>` +
-          `<td class="mono">${escapeHtml(b.createdWib)}</td>` +
-          `<td><a class="btn btn-sm" href="/api/backups/download?file=${encodeURIComponent(b.name)}${tokenParam}">Download .db</a></td>` +
-          `</tr>`
-      )
-      .join('');
-  }
-
-  async function loadAuditView() {
-    const cat = $('auditCategorySelect').value || '';
-    const data = await api(`/api/audit?limit=80&category=${encodeURIComponent(cat)}`);
-    const auditBody = $('auditTableBody');
-    if (!data.logs.length) {
-      auditBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:14px;">No audit records matching filter.</td></tr>`;
-      return;
-    }
-
-    auditBody.innerHTML = data.logs
-      .map(
-        (l) =>
-          `<tr>` +
-          `<td class="mono" style="color:var(--text-muted);">${escapeHtml(l.timeWib || '-')}</td>` +
-          `<td><span class="badge">${escapeHtml(l.category || 'system')}</span></td>` +
-          `<td class="mono">${escapeHtml(l.actorJid || l.actor_jid || '-')}</td>` +
-          `<td><span class="badge accent">${escapeHtml(l.action)}</span></td>` +
-          `<td class="mono">${escapeHtml(l.target || '-')}</td>` +
-          `</tr>`
-      )
-      .join('');
-  }
-
-  // ─── Navigation Switching ───
-  async function switchView(viewName) {
-    state.activeView = viewName;
-    document.querySelectorAll('.nav-btn[data-view]').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.view === viewName);
-    });
-    document.querySelectorAll('.view-section').forEach((sec) => {
-      sec.classList.toggle('hidden', sec.id !== `view-${viewName}`);
-    });
-    $('sidebar').classList.remove('open');
-
-    try {
-      if (viewName === 'console') {
-        renderConsoleLines();
-        requestAnimationFrame(drawAllCharts);
-      } else if (viewName === 'runtime') {
-        await Promise.all([loadOverview(), loadCommandsView()]);
-      } else if (viewName === 'minecraft') {
-        await loadMinecraftView();
-      } else if (viewName === 'users') {
-        await loadUsersView();
-      } else if (viewName === 'comms') {
-        await loadCommsView();
-      } else if (viewName === 'storage') {
-        await loadStorageView();
-      } else if (viewName === 'audit') {
-        await loadAuditView();
-      }
-    } catch (err) {
-      toast(err.message, 'error');
-    }
-  }
-
-  async function initializeDashboard() {
-    await loadOverview();
-    connectSseStream();
-    requestAnimationFrame(drawAllCharts);
-  }
-
-  async function runConsoleCommand(cmd) {
-    const clean = String(cmd || '').trim();
-    if (!clean) return;
-    state.cmdHistory.push(clean);
-    state.cmdHistoryIdx = state.cmdHistory.length;
-    try {
-      await api('/api/console/exec', { method: 'POST', body: { command: clean } });
-      await loadOverview();
-    } catch (err) {
-      toast(err.message, 'error');
-    }
-  }
-
-  // ─── Event Listeners Wiring ───
-  function bindEvents() {
-    $('themeToggleBtn').addEventListener('click', toggleTheme);
-    $('loginThemeBtn').addEventListener('click', toggleTheme);
-
-    $('mobileMenuBtn').addEventListener('click', () => {
-      $('sidebar').classList.toggle('open');
-    });
-
-    window.addEventListener('resize', () => {
-      if (state.activeView === 'console') drawAllCharts();
-    });
-
-    document.querySelectorAll('.nav-btn[data-view]').forEach((btn) => {
-      btn.addEventListener('click', () => switchView(btn.dataset.view));
-    });
-
-    // Login & Quick Sandbox Preview
-    $('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      $('authError').classList.add('hidden');
-      try {
-        const loginData = await api('/api/auth/login', {
-          method: 'POST',
-          body: {
-            username: $('loginUsername').value.trim(),
-            password: $('loginPassword').value,
-          },
-        });
-        if (loginData.token) saveToken(loginData.token);
-        $('loginPassword').value = '';
-        hideAuthGate();
-        await initializeDashboard();
-      } catch (err) {
-        $('authError').textContent = err.message;
-        $('authError').classList.remove('hidden');
-      }
-    });
-
-    $('btnQuickPreview').addEventListener('click', async () => {
-      try {
-        const loginData = await api('/api/auth/login', { method: 'POST', body: { quickPreview: true } });
-        if (loginData.token) saveToken(loginData.token);
-        hideAuthGate();
-        await initializeDashboard();
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('logoutBtn').addEventListener('click', async () => {
-      await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
-      saveToken('');
-      state.sandboxPreview = false;
-      showAuthGate();
-    });
-
-    // Persistent Instance Header Controls
-    $('btnWaConnect').addEventListener('click', async () => {
-      try {
-        const res = await api('/api/power', { method: 'POST', body: { action: 'connect' } });
-        toast(res.message || 'WhatsApp start signal sent');
-        await loadOverview();
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('btnReloadCmds').addEventListener('click', async () => {
-      try {
-        const res = await api('/api/power', { method: 'POST', body: { action: 'reload' } });
-        toast(`Hot-reloaded ${res.commandsCount} primary commands (${res.aliasesCount} aliases)`);
-        await loadOverview();
-        if (state.activeView === 'runtime') await loadCommandsView();
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('btnWaDisconnect').addEventListener('click', () => {
-      askConfirm(
-        'Disconnect WhatsApp Socket',
-        'Temporarily close the active WhatsApp Baileys socket? You can reconnect anytime using Start.',
-        async () => {
-          const res = await api('/api/power', { method: 'POST', body: { action: 'disconnect' } });
-          toast(res.message || 'WhatsApp socket disconnected');
-          await loadOverview();
-        }
-      );
-    });
-
-    // Console Controls, Quick Chips & Internal CLI
-    document.querySelectorAll('[data-log-filter]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        state.logFilter = btn.dataset.logFilter;
-        document.querySelectorAll('[data-log-filter]').forEach((b) => b.classList.toggle('active', b === btn));
-        renderConsoleLines();
-      });
-    });
-
-    document.querySelectorAll('[data-cli-chip]').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        runConsoleCommand(chip.dataset.cliChip);
-      });
-    });
-
-    $('btnAutoScroll').addEventListener('click', () => {
-      state.autoScroll = !state.autoScroll;
-      $('btnAutoScroll').textContent = `Auto-Scroll: ${state.autoScroll ? 'ON' : 'OFF'}`;
-      if (state.autoScroll) renderConsoleLines();
-    });
-
-    $('btnClearConsole').addEventListener('click', () => {
-      state.consoleEntries = [];
-      renderConsoleLines();
-    });
-
-    $('consoleCmdInput').addEventListener('keydown', (e) => {
-      if (!state.cmdHistory.length) return;
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        state.cmdHistoryIdx = Math.max(0, state.cmdHistoryIdx - 1);
-        $('consoleCmdInput').value = state.cmdHistory[state.cmdHistoryIdx] || '';
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        state.cmdHistoryIdx = Math.min(state.cmdHistory.length, state.cmdHistoryIdx + 1);
-        $('consoleCmdInput').value = state.cmdHistory[state.cmdHistoryIdx] || '';
-      }
-    });
-
-    $('consoleExecForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const input = $('consoleCmdInput');
-      const cmd = input.value.trim();
-      if (!cmd) return;
-      input.value = '';
-      await runConsoleCommand(cmd);
-    });
-
-    // Runtime Switches & Pairing
-    $('btnToggleBotMode').addEventListener('click', async () => {
-      const cur = state.overview?.instance?.operational?.botMode || 'public';
-      const next = cur === 'public' ? 'self' : 'public';
-      try {
-        const res = await api('/api/runtime/config', { method: 'POST', body: { botMode: next } });
-        applyOverviewData(res.overview);
-        toast(`Bot access mode set to ${next.toUpperCase()}`);
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('btnToggleMaint').addEventListener('click', async () => {
-      const cur = Boolean(state.overview?.instance?.operational?.maintenance);
-      try {
-        const res = await api('/api/runtime/config', { method: 'POST', body: { maintenance: !cur } });
-        applyOverviewData(res.overview);
-        toast(`Maintenance mode ${!cur ? 'ENABLED' : 'DISABLED'}`);
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('btnToggleDryRun').addEventListener('click', async () => {
-      const cur = Boolean(state.overview?.instance?.operational?.dryRun);
-      try {
-        const res = await api('/api/runtime/config', { method: 'POST', body: { dryRun: !cur } });
-        applyOverviewData(res.overview);
-        toast(`Dry-Run simulation ${!cur ? 'ENABLED' : 'DISABLED'}`);
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('btnToggleButtons').addEventListener('click', async () => {
-      const cur = Boolean(state.overview?.instance?.operational?.useButtons);
-      try {
-        const res = await api('/api/runtime/config', { method: 'POST', body: { useButtons: !cur } });
-        applyOverviewData(res.overview);
-        toast(`Interactive buttons ${!cur ? 'ENABLED' : 'DISABLED'}`);
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('pairingForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      try {
-        const res = await api('/api/runtime/pairing', {
-          method: 'POST',
-          body: { phone: $('pairingPhoneInput').value },
-        });
-        const box = $('pairingResultBox');
-        box.classList.remove('hidden');
-        box.textContent = `Pairing Code (+${res.phone}): ${res.pairingCode}`;
-        toast('Pairing code generated');
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('cmdSearchInput').addEventListener('input', renderCommandsTable);
-    $('cmdCategorySelect').addEventListener('change', renderCommandsTable);
-
-    // Minecraft & Wings View
-    $('btnRefreshMc').addEventListener('click', () => loadMinecraftView().catch((e) => toast(e.message, 'error')));
-
-    document.querySelectorAll('.ptero-power-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const sig = btn.dataset.signal;
-        const execPower = async () => {
-          const res = await api('/api/minecraft/power', { method: 'POST', body: { action: sig } });
-          toast(res.message || `Wings action "${sig}" dispatched`);
-          await loadMinecraftView();
-        };
-        if (sig === 'stop' || sig === 'restart') {
-          askConfirm(
-            `Confirm Wings ${sig.toUpperCase()}`,
-            `Send "${sig}" power signal to Pterodactyl Wings container? Active players may be disconnected.`,
-            execPower
-          );
-        } else {
-          execPower().catch((err) => toast(err.message, 'error'));
-        }
-      });
-    });
-
-    document.querySelectorAll('.rcon-preset').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        $('rconInput').value = btn.dataset.cmd;
-      });
-    });
-
-    $('rconForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const cmd = $('rconInput').value.trim();
-      if (!cmd) return;
-      try {
-        const res = await api('/api/minecraft/console', { method: 'POST', body: { command: cmd } });
-        $('rconOutput').textContent = `[OK] $ ${cmd}\n${res.output || res.message || 'Dispatched to server.'}`;
-        toast('RCON command executed');
-      } catch (err) {
-        $('rconOutput').textContent = `[REJECTED] $ ${cmd}\n${err.message}`;
-        toast(err.message, 'error');
-      }
-    });
-
-    // Users & Economy View (including Real SQLite User Registration/Lookup)
-    const ensureForm = $('ensureUserForm');
-    if (ensureForm) {
-      ensureForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try {
-          const res = await api('/api/users/ensure', {
-            method: 'POST',
-            body: {
-              phone: $('ensureUserPhone').value,
-              name: $('ensureUserName').value,
-            },
-          });
-          $('ensureUserPhone').value = '';
-          $('ensureUserName').value = '';
-          toast(`User +${res.phone} registered in SQLite`);
-          await loadUsersView();
-          const refreshed = await api(`/api/users?q=${encodeURIComponent(res.phone)}&pageSize=5`);
-          const found = (refreshed.users || []).find((u) => u.jid === res.jid);
-          if (found) openUserDrawer(found);
-        } catch (err) {
-          toast(err.message, 'error');
-        }
-      });
-    }
-
-    document.querySelectorAll('[data-user-filter]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        state.userFilter = btn.dataset.userFilter;
-        document.querySelectorAll('[data-user-filter]').forEach((b) => b.classList.toggle('active', b === btn));
-        loadUsersView().catch((err) => toast(err.message, 'error'));
-      });
-    });
-
-    let searchTimer = null;
-    $('userSearchInput').addEventListener('input', () => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => {
-        state.userSearch = $('userSearchInput').value.trim();
-        loadUsersView().catch((err) => toast(err.message, 'error'));
-      }, 220);
-    });
-
-    $('btnCloseDrawer').addEventListener('click', () => {
-      $('userDrawerBackdrop').classList.add('hidden');
-    });
-    $('userDrawerBackdrop').addEventListener('click', (e) => {
-      if (e.target === $('userDrawerBackdrop')) $('userDrawerBackdrop').classList.add('hidden');
-    });
-
-    async function mutateSelectedUser(url, body, okMsg) {
-      if (!state.selectedUser) return;
-      await api(url, { method: 'POST', body: { jid: state.selectedUser.jid, ...body } });
-      toast(okMsg);
-      await loadUsersView();
-      const refreshed = await api(`/api/users?q=${encodeURIComponent(state.selectedUser.phone)}&pageSize=10`);
-      const found = (refreshed.users || []).find((u) => u.jid === state.selectedUser.jid);
-      if (found) openUserDrawer(found);
-    }
-
-    $('btnDrawerAddCoin').addEventListener('click', () => {
-      const amt = Math.abs(Number($('drawerCoinAmount').value || 0));
-      mutateSelectedUser('/api/users/coins', { delta: amt }, `+${formatNumber(amt)} coins added`).catch((e) =>
-        toast(e.message, 'error')
-      );
-    });
-
-    $('btnDrawerSubCoin').addEventListener('click', () => {
-      const amt = Math.abs(Number($('drawerCoinAmount').value || 0));
-      mutateSelectedUser('/api/users/coins', { delta: -amt }, `-${formatNumber(amt)} coins deducted`).catch((e) =>
-        toast(e.message, 'error')
-      );
-    });
-
-    $('btnDrawerGrantVip').addEventListener('click', () => {
-      const duration = ($('drawerVipDuration').value || '30d').trim();
-      mutateSelectedUser('/api/users/vip', { duration }, `Granted Sakura VIP (${duration})`).catch((e) =>
-        toast(e.message, 'error')
-      );
-    });
-
-    $('btnDrawerRevokeVip').addEventListener('click', () => {
-      mutateSelectedUser('/api/users/vip', { action: 'revoke' }, 'Sakura VIP revoked').catch((e) =>
-        toast(e.message, 'error')
-      );
-    });
-
-    $('btnDrawerBan').addEventListener('click', () => {
-      const reason = $('drawerBanReason').value.trim();
-      mutateSelectedUser('/api/users/ban', { reason }, 'User restricted (banned)').catch((e) =>
-        toast(e.message, 'error')
-      );
-    });
-
-    $('btnDrawerUnban').addEventListener('click', () => {
-      mutateSelectedUser('/api/users/ban', { action: 'unban' }, 'User unbanned').catch((e) =>
-        toast(e.message, 'error')
-      );
-    });
-
-    // Broadcast & Tickets View
-    $('broadcastForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      try {
-        const res = await api('/api/broadcast', {
-          method: 'POST',
-          body: {
-            targetMode: $('bcTargetMode').value,
-            message: $('bcMessage').value,
-          },
-        });
-        const box = $('bcResultInfo');
-        box.classList.remove('hidden');
-        const r = res.result || {};
-        box.textContent = `${r.dryRun ? '[DRY-RUN]' : '[LIVE]'} Broadcast dispatched (target=${$('bcTargetMode').value})`;
-        toast('Broadcast job completed');
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('btnRefreshComms').addEventListener('click', () => loadCommsView().catch((e) => toast(e.message, 'error')));
-
-    // Storage & Backups View
-    $('btnCreateBackup').addEventListener('click', async () => {
-      try {
-        await api('/api/backups/create', { method: 'POST' });
-        toast('SQLite snapshot created');
-        await loadStorageView();
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    $('btnWalCheckpoint').addEventListener('click', async () => {
-      try {
-        await api('/api/storage/checkpoint', { method: 'POST' });
-        toast('SQLite WAL TRUNCATE checkpoint completed');
-        await loadStorageView();
-      } catch (err) {
-        toast(err.message, 'error');
-      }
-    });
-
-    // Audit View
-    $('auditCategorySelect').addEventListener('change', () => loadAuditView().catch((e) => toast(e.message, 'error')));
-    $('btnRefreshAudit').addEventListener('click', () => loadAuditView().catch((e) => toast(e.message, 'error')));
-
-    // Confirmation Modal
-    $('btnConfirmCancel').addEventListener('click', () => {
-      state.confirmCallback = null;
-      $('confirmModalBackdrop').classList.add('hidden');
-    });
-
-    $('btnConfirmProceed').addEventListener('click', async () => {
-      const fn = state.confirmCallback;
-      state.confirmCallback = null;
-      $('confirmModalBackdrop').classList.add('hidden');
-      if (typeof fn === 'function') {
-        try {
-          await fn();
-        } catch (err) {
-          toast(err.message, 'error');
-        }
-      }
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    bindEvents();
-    checkSessionAndBoot();
-  });
-})();
-
-  </script>
+  <script src="/charts.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>
