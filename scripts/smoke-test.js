@@ -1913,9 +1913,92 @@ async function run() {
     '.sach wajib mengirim stiker WebP Achievement Minecraft!'
   );
 
-  // 38. Uji Fitur .ecode (.encode) & .dcode (.decode Auto-Detect + Reply Bot + Anti-Smuggling Link)
+  // 38. Uji Fitur .ecode (.encode Script Obfuscator) & .dcode (.decode Script Deobfuscator + Beautifier + Sandi)
   const { encodeText, decodeText } = require('../lib/codec');
+  const { obfuscateJavaScript, deobfuscateAndBeautifyJavaScript } = require('../lib/script-codec');
 
+  // 38a. Uji Obfuscate -> Deobfuscate & Sempurnakan (Beautify) pada file script .js via WhatsApp Document!
+  const rawBotScript = [
+    '// Plugin hadiah CipiSMP',
+    'module.exports = {',
+    '  name: "hadiah",',
+    '  active: true,',
+    '  hitung(nama, poin) {',
+    '    if (/vip/i.test(nama)) {',
+    '      return "Selamat " + nama + " dapat " + (poin + 500);',
+    '    }',
+    '    return "Halo " + nama;',
+    '  }',
+    '};',
+  ].join('\n');
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'ECODE_DOC_1' },
+    pushName: 'TemanMabar',
+    message: {
+      extendedTextMessage: {
+        text: '.ecode',
+        contextInfo: {
+          stanzaId: 'DOC_RAW_1',
+          participant: callerUserJid,
+          quotedMessage: {
+            documentMessage: {
+              fileName: 'hadiah.js',
+              mimetype: 'application/javascript',
+              fileLength: Buffer.byteLength(rawBotScript),
+              _mockBuffer: Buffer.from(rawBotScript, 'utf8'),
+            },
+          },
+        },
+      },
+    },
+  });
+  const encDocMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.document));
+  assert(encDocMsg && encDocMsg.fileName === 'hadiah-enc.js', '.ecode pada file .js wajib mengirim dokumen hadiah-enc.js');
+  const encryptedScriptStr = encDocMsg.document.toString('utf8');
+  assert(!encryptedScriptStr.includes('Selamat '), 'String asli harus terenkripsi di dalam hadiah-enc.js');
+
+  // Sekarang reply hadiah-enc.js dengan .dcode untuk mendekripsi & menyempurnakan kembali jadi hadiah-clean.js!
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'DCODE_DOC_1' },
+    pushName: 'TemanMabar',
+    message: {
+      extendedTextMessage: {
+        text: '.dcode',
+        contextInfo: {
+          stanzaId: 'DOC_ENC_1',
+          participant: callerUserJid,
+          quotedMessage: {
+            documentMessage: {
+              fileName: 'hadiah-enc.js',
+              mimetype: 'application/javascript',
+              fileLength: encDocMsg.document.length,
+              _mockBuffer: encDocMsg.document,
+            },
+          },
+        },
+      },
+    },
+  });
+  const decDocMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.document));
+  assert(decDocMsg && decDocMsg.fileName === 'hadiah-clean.js', '.dcode pada file terenkripsi wajib mengirim hadiah-clean.js');
+  const cleanedScriptStr = decDocMsg.document.toString('utf8');
+  assert(cleanedScriptStr.includes('module.exports') && cleanedScriptStr.includes('Selamat '), 'Kode hasil .dcode wajib kembali bersih & terbaca');
+  assert(cleanedScriptStr.includes('/vip/i.test(nama)'), 'Akses method regex wajib rapi kembali ke notasi titik');
+
+  // Pastikan kode hasil .dcode tetap 100% jalan dieksekusi identik!
+  const testMod = { exports: {} };
+  new Function('exports', 'require', 'module', cleanedScriptStr)(testMod.exports, require, testMod);
+  assert.strictEqual(testMod.exports.hitung('YudhisVIP', 250), 'Selamat YudhisVIP dapat 750');
+
+  // 38b. Uji Zlib+XOR Pack Container & Dean Edwards P.A.C.K.E.R
+  const packedJs = obfuscateJavaScript(rawBotScript, { mode: 'pack' });
+  const unpackedJs = deobfuscateAndBeautifyJavaScript(packedJs.code);
+  assert(unpackedJs.code.includes('Selamat ') && unpackedJs.syntaxValid);
+
+  // 38c. Uji juga sandi teks biasa (Base64/Hex/Biner/Morse) & proteksi Antilink
   const b64Enc = encodeText('b64', 'Rahasia Berlian CipiSMP 26.3');
   assert.strictEqual(decodeText('auto', b64Enc.result).result, 'Rahasia Berlian CipiSMP 26.3');
 
@@ -1929,10 +2012,11 @@ async function run() {
   assert.strictEqual(decodeText('auto', morseEnc.result).result, 'HALO CIPI 26');
 
   // Uji live .ecode lalu reply hasil bot dengan .dcode tanpa menyebut format
+  const cipherTesterJid = '6287799005566@s.whatsapp.net';
   tagTestPayloads.length = 0;
   await handleIncomingMessage(tagTestSock, {
-    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'ECODE_1' },
-    pushName: 'TemanMabar',
+    key: { remoteJid: tagTestGroupJid, participant: cipherTesterJid, fromMe: false, id: 'ECODE_1' },
+    pushName: 'CipherUser',
     message: { conversation: '.ecode Rahasia Kastil Cipi' },
   });
   const ecodeReplyText = tagTestPayloads.find((p) => String(p?.text || '').includes('aGFzaWE') || String(p?.text || '').includes('UmFoYXNpYS'))?.text || '';
@@ -1940,8 +2024,8 @@ async function run() {
 
   tagTestPayloads.length = 0;
   await handleIncomingMessage(tagTestSock, {
-    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'DCODE_REPLY_1' },
-    pushName: 'TemanMabar',
+    key: { remoteJid: tagTestGroupJid, participant: cipherTesterJid, fromMe: false, id: 'DCODE_REPLY_1' },
+    pushName: 'CipherUser',
     message: {
       extendedTextMessage: {
         text: '.dcode',
@@ -1957,11 +2041,12 @@ async function run() {
   );
 
   // Uji anti-penyelundupan tautan tersembunyi via Base64 saat Antilink grup aktif
+  const badLinkUserJid = '6287799007788@s.whatsapp.net';
   getDb().run('UPDATE groups SET antilink = 1 WHERE jid = ?', [tagTestGroupJid]);
   const hiddenInviteB64 = Buffer.from('Ayo join https://chat.whatsapp.com/AbCdEfGhIjKlMnOpQrStUv', 'utf8').toString('base64');
   tagTestPayloads.length = 0;
   await handleIncomingMessage(tagTestSock, {
-    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'DCODE_BADLINK_1' },
+    key: { remoteJid: tagTestGroupJid, participant: badLinkUserJid, fromMe: false, id: 'DCODE_BADLINK_1' },
     pushName: 'TemanMabar',
     message: { conversation: `.dcode ${hiddenInviteB64}` },
   });
