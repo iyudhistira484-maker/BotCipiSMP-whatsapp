@@ -169,14 +169,14 @@ module.exports = {
       }
     }
 
-    // 2. Jika user mengetik username MC langsung (.skin Yudhis / .skin .BedrockName)
+    // 2. Jika user mengetik username MC langsung (.skin Cello / .skin .BedrockName)
     if (!targetMcName && args.length >= 1 && !String(args[0] || '').startsWith('@')) {
       const parsed = normalizeMinecraftUsername(args[0]);
       if (!parsed.valid) {
         await ctx.reply(
           formatError('Username Minecraft Tidak Valid', [
             'Gunakan huruf, angka, garis bawah (3–16 karakter), atau awalan titik untuk Bedrock.',
-            `Contoh: ${mono(`${p}skin Notch`)} atau ${mono(`${p}skin .PlayerBedrock`)}`,
+            `Contoh: ${mono(`${p}skin Cello`)} atau ${mono(`${p}skin .PlayerBedrock`)}`,
           ])
         );
         return;
@@ -187,7 +187,7 @@ module.exports = {
     if (!targetMcName) {
       await ctx.reply(
         formatError('Username Belum Disebutkan', [
-          `Ketik ${mono(`${p}skin <username_mc>`)} (contoh: ${mono(`${p}skin Yudhis`)}).`,
+          `Ketik ${mono(`${p}skin <username_mc>`)} (contoh: ${mono(`${p}skin Cello`)}).`,
           `Atau tautkan akunmu lewat ${mono(`${p}link`)} agar cukup ketik ${mono(`${p}skin`)} saja!`,
         ])
       );

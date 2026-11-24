@@ -307,7 +307,7 @@ async function runE2E() {
     await dispatchCmd('.qc Lagi nambang diamond di CipiSMP!');
     await dispatchCmd('.brat hijau cipi smp paling asik');
     await dispatchCmd('.ach Dapat Full Netherite!');
-    await dispatchCmd('.skin YudhisCipi');
+    await dispatchCmd('.skin Cello');
     await dispatchCmd('.poll Event malam ini? | PvP Arena | Parkour | Boss Fight');
     await dispatchCmd('.encode morse Halo CipiSMP');
     await dispatchCmd('.decode .... .- .-.. --- / -.-. .. .--. .. ... -- .--.');
