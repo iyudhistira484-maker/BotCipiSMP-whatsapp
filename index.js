@@ -406,11 +406,52 @@ function sanitizeUserInput(raw = '') {
     .trim();
 }
 
+const botSentMessageIds = new Set();
+
+function recordBotSentId(stanzaId) {
+  if (!stanzaId) return;
+  if (botSentMessageIds.size >= 800) {
+    const oldest = botSentMessageIds.values().next().value;
+    if (oldest !== undefined) botSentMessageIds.delete(oldest);
+  }
+  botSentMessageIds.add(String(stanzaId));
+}
+
+function wrapSocketOutgoingTracker(sock) {
+  if (!sock || sock._cipiOutgoingTracked) return sock;
+  Object.defineProperty(sock, '_cipiOutgoingTracked', { value: true, enumerable: false });
+
+  if (typeof sock.sendMessage === 'function') {
+    const origSend = sock.sendMessage.bind(sock);
+    sock.sendMessage = async (...args) => {
+      const sentRes = await origSend(...args);
+      if (sentRes?.key?.id) recordBotSentId(sentRes.key.id);
+      return sentRes;
+    };
+  }
+  if (typeof sock.relayMessage === 'function') {
+    const origRelay = sock.relayMessage.bind(sock);
+    sock.relayMessage = async (jid, message, opts = {}) => {
+      if (opts?.messageId) recordBotSentId(opts.messageId);
+      const relayRes = await origRelay(jid, message, opts);
+      if (typeof relayRes === 'string') recordBotSentId(relayRes);
+      return relayRes;
+    };
+  }
+  return sock;
+}
+
 /**
  * Handler utama setiap pesan & balasan tombol masuk
  */
 async function handleIncomingMessage(sock, msg) {
   if (!msg || !msg.message || !msg.key) return;
+  wrapSocketOutgoingTracker(sock);
+
+  // Abaikan pantulan pesan (echo) yang baru saja dikirim oleh bot sendiri
+  if (msg.key.fromMe && msg.key.id && botSentMessageIds.has(String(msg.key.id))) {
+    return;
+  }
 
   const chatJid = msg.key.remoteJid || '';
   if (!chatJid || chatJid === 'status@broadcast' || chatJid.endsWith('@newsletter')) {

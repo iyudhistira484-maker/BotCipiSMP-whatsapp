@@ -1407,6 +1407,10 @@ async function run() {
     'restartbot',
     'addprem', 'delprem', 'listprem',
     'eval', 'logs',
+    // Fitur Baru: Stiker .qc, .brat, Sistem .afk Grup, Paket Minecraft (.ach, .skin, .poll) & Sandi (.encode/.ecode, .decode/.dcode)
+    'qc', 'brat', 'afk',
+    'ach', 'skin', 'poll',
+    'encode', 'decode',
   ];
   for (const name of requiredCommands) {
     assert(commands.has(name), `Command wajib .${name} harus terdaftar`);
@@ -1787,18 +1791,310 @@ async function run() {
     'Format chat plugin [Rank] Nama » CP-XXXXXX wajib terverifikasi otomatis!'
   );
 
+  // 36. Uji Fitur Baru: Stiker .qc (Quote Chat WA), .brat (Putih/Hijau), & Sistem .afk Grup Otomatis
+  const { renderQuoteChatSticker, renderBratSticker } = require('../lib/sticker');
+  const { getUserAfk } = require('../lib/database');
+
+  const qcWebp = await renderQuoteChatSticker({
+    senderName: 'YudhisCipi',
+    text: 'Ayo mabar di CipiSMP malam ini!',
+    theme: 'dark',
+  });
+  assert(Buffer.isBuffer(qcWebp) && qcWebp.length > 500, 'Stiker .qc wajib menghasilkan buffer WebP valid');
+  assert.strictEqual(qcWebp.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.strictEqual(qcWebp.subarray(8, 12).toString('ascii'), 'WEBP');
+
+  const bratWebp = await renderBratSticker({
+    text: 'lagi nambang netherite jangan diganggu',
+    theme: 'hijau',
+  });
+  assert(Buffer.isBuffer(bratWebp) && bratWebp.length > 500, 'Stiker .brat wajib menghasilkan buffer WebP valid');
+  assert.strictEqual(bratWebp.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.strictEqual(bratWebp.subarray(8, 12).toString('ascii'), 'WEBP');
+
+  // Uji alur live .afk di grup: pasang AFK -> teman nge-tag -> bot membalas SEDANG AFK -> user chat lagi -> AFK dicabut
+  require('../lib/group-guard').register(require('../index'));
+
+  const afkUserJid = '6287799001122@s.whatsapp.net';
+  const callerUserJid = '6287799003344@s.whatsapp.net';
+  tagTestPayloads.length = 0;
+
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: afkUserJid, fromMe: false, id: 'AFK_SET_1' },
+    pushName: 'PetualangAFK',
+    message: { conversation: '.afk Lagi makan siang bentar' },
+  });
+  const activeAfk = getUserAfk(afkUserJid);
+  assert(activeAfk && activeAfk.reason === 'Lagi makan siang bentar', 'Status AFK wajib tersimpan di SQLite');
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'AFK_TAG_1' },
+    pushName: 'TemanMabar',
+    message: {
+      extendedTextMessage: {
+        text: 'Woi @6287799001122 ayo nambang!',
+        contextInfo: { mentionedJid: [afkUserJid] },
+      },
+    },
+  });
+  assert(
+    tagTestPayloads.some(
+      (p) => String(p?.text || '').includes('Lagi makan siang bentar') && Array.isArray(p?.mentions) && p.mentions.includes(afkUserJid)
+    ),
+    'Saat member AFK di-tag, bot wajib membalas alasan AFK dengan mention asli!'
+  );
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: afkUserJid, fromMe: false, id: 'AFK_BACK_1' },
+    pushName: 'PetualangAFK',
+    message: { conversation: 'Halo aku udah balik nih!' },
+  });
+  assert.strictEqual(getUserAfk(afkUserJid), null, 'Status AFK wajib otomatis dicabut saat member kembali chat');
+  assert(
+    tagTestPayloads.some((p) => String(p?.text || '').includes('Selamat datang kembali')),
+    'Bot wajib menyambut member yang kembali dari AFK'
+  );
+
+  // 37. Uji Paket Khas Minecraft SMP: .ach (PNG & Stiker .sach), .skin (Kartu 3D/Pixel + UUID v3), & .poll (WA Poll Asli)
+  const { renderMinecraftAchievementCard, renderMinecraftSkinCard } = require('../lib/card');
+  const { renderAchievementSticker } = require('../lib/sticker');
+
+  const achPng = await renderMinecraftAchievementCard({
+    title: 'Achievement Get!',
+    description: 'Dapat Full Netherite di CipiSMP!',
+    icon: 'creeper',
+  });
+  assert(Buffer.isBuffer(achPng) && achPng.length > 800 && achPng[1] === 0x50 && achPng[2] === 0x4e && achPng[3] === 0x47);
+
+  const achSticker = await renderAchievementSticker({
+    title: 'Challenge Complete!',
+    description: 'Solo Ender Dragon!',
+    challenge: true,
+  });
+  assert.strictEqual(achSticker.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.strictEqual(achSticker.subarray(8, 12).toString('ascii'), 'WEBP');
+
+  const skinPng = await renderMinecraftSkinCard({
+    username: 'YudhisCipi',
+    edition: 'Java Edition',
+    offlineUuid: '12345678-1234-3123-8123-1234567890ab',
+  });
+  assert(Buffer.isBuffer(skinPng) && skinPng.length > 1500 && skinPng[1] === 0x50);
+
+  // Uji live .skin <Java>, .skin <.Bedrock>, dan .skin tanpa argumen (akun tertaut di tabel links)
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: '6287799004411@s.whatsapp.net', fromMe: false, id: 'SKIN_JAVA_1' },
+    pushName: 'CekJava',
+    message: { conversation: '.skin Notch' },
+  });
+  const skinJavaMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.image));
+  assert(
+    skinJavaMsg && String(skinJavaMsg.caption || '').includes('Notch'),
+    '.skin Notch wajib mengirim kartu PNG & caption username Notch!'
+  );
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: '6287799004422@s.whatsapp.net', fromMe: false, id: 'SKIN_BE_1' },
+    pushName: 'CekBedrock',
+    message: { conversation: '.skin .PlayerBedrock' },
+  });
+  const skinBedrockMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.image));
+  assert(
+    skinBedrockMsg && String(skinBedrockMsg.caption || '').includes('Bedrock'),
+    '.skin .PlayerBedrock wajib mengenali akun Geyser Bedrock!'
+  );
+
+  // Uji live .poll cepat (otomatis opsi Setuju / Tidak Setuju) & .sach stiker di grup
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'POLL_QUICK_1' },
+    pushName: 'TemanMabar',
+    message: { conversation: '.poll Malam ini event Boss Fight?' },
+  });
+  assert(
+    tagTestPayloads.some(
+      (p) =>
+        p?.poll &&
+        p.poll.name === 'Malam ini event Boss Fight?' &&
+        Array.isArray(p.poll.values) &&
+        p.poll.values.includes('Setuju') &&
+        p.poll.selectableCount === 1
+    ),
+    '.poll cepat wajib mengirim payload native WhatsApp Poll dengan opsi Setuju/Tidak Setuju!'
+  );
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'SACH_1' },
+    pushName: 'TemanMabar',
+    message: { conversation: '.sach Kena Ledakan Creeper!' },
+  });
+  assert(
+    tagTestPayloads.some((p) => Buffer.isBuffer(p?.sticker) && p.sticker.subarray(8, 12).toString('ascii') === 'WEBP'),
+    '.sach wajib mengirim stiker WebP Achievement Minecraft!'
+  );
+
+  // 38. Uji Fitur .ecode (.encode Script Obfuscator) & .dcode (.decode Script Deobfuscator + Beautifier + Sandi)
+  const { encodeText, decodeText } = require('../lib/codec');
+  const { obfuscateJavaScript, deobfuscateAndBeautifyJavaScript } = require('../lib/script-codec');
+
+  // 38a. Uji Obfuscate -> Deobfuscate & Sempurnakan (Beautify) pada file script .js via WhatsApp Document!
+  const rawBotScript = [
+    '// Plugin hadiah CipiSMP',
+    'module.exports = {',
+    '  name: "hadiah",',
+    '  active: true,',
+    '  hitung(nama, poin) {',
+    '    if (/vip/i.test(nama)) {',
+    '      return "Selamat " + nama + " dapat " + (poin + 500);',
+    '    }',
+    '    return "Halo " + nama;',
+    '  }',
+    '};',
+  ].join('\n');
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'ECODE_DOC_1' },
+    pushName: 'TemanMabar',
+    message: {
+      extendedTextMessage: {
+        text: '.ecode',
+        contextInfo: {
+          stanzaId: 'DOC_RAW_1',
+          participant: callerUserJid,
+          quotedMessage: {
+            documentMessage: {
+              fileName: 'hadiah.js',
+              mimetype: 'application/javascript',
+              fileLength: Buffer.byteLength(rawBotScript),
+              _mockBuffer: Buffer.from(rawBotScript, 'utf8'),
+            },
+          },
+        },
+      },
+    },
+  });
+  const encDocMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.document));
+  assert(encDocMsg && encDocMsg.fileName === 'hadiah-enc.js', '.ecode pada file .js wajib mengirim dokumen hadiah-enc.js');
+  const encryptedScriptStr = encDocMsg.document.toString('utf8');
+  assert(!encryptedScriptStr.includes('Selamat '), 'String asli harus terenkripsi di dalam hadiah-enc.js');
+
+  // Sekarang reply hadiah-enc.js dengan .dcode untuk mendekripsi & menyempurnakan kembali jadi hadiah-clean.js!
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'DCODE_DOC_1' },
+    pushName: 'TemanMabar',
+    message: {
+      extendedTextMessage: {
+        text: '.dcode',
+        contextInfo: {
+          stanzaId: 'DOC_ENC_1',
+          participant: callerUserJid,
+          quotedMessage: {
+            documentMessage: {
+              fileName: 'hadiah-enc.js',
+              mimetype: 'application/javascript',
+              fileLength: encDocMsg.document.length,
+              _mockBuffer: encDocMsg.document,
+            },
+          },
+        },
+      },
+    },
+  });
+  const decDocMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.document));
+  assert(decDocMsg && decDocMsg.fileName === 'hadiah-clean.js', '.dcode pada file terenkripsi wajib mengirim hadiah-clean.js');
+  const cleanedScriptStr = decDocMsg.document.toString('utf8');
+  assert(cleanedScriptStr.includes('module.exports') && cleanedScriptStr.includes('Selamat '), 'Kode hasil .dcode wajib kembali bersih & terbaca');
+  assert(cleanedScriptStr.includes('/vip/i.test(nama)'), 'Akses method regex wajib rapi kembali ke notasi titik');
+
+  // Pastikan kode hasil .dcode tetap 100% jalan dieksekusi identik!
+  const testMod = { exports: {} };
+  new Function('exports', 'require', 'module', cleanedScriptStr)(testMod.exports, require, testMod);
+  assert.strictEqual(testMod.exports.hitung('YudhisVIP', 250), 'Selamat YudhisVIP dapat 750');
+
+  // 38b. Uji Zlib+XOR Pack Container & Dean Edwards P.A.C.K.E.R
+  const packedJs = obfuscateJavaScript(rawBotScript, { mode: 'pack' });
+  const unpackedJs = deobfuscateAndBeautifyJavaScript(packedJs.code);
+  assert(unpackedJs.code.includes('Selamat ') && unpackedJs.syntaxValid);
+
+  // 38c. Uji juga sandi teks biasa (Base64/Hex/Biner/Morse) & proteksi Antilink
+  const b64Enc = encodeText('b64', 'Rahasia Berlian CipiSMP 26.3');
+  assert.strictEqual(decodeText('auto', b64Enc.result).result, 'Rahasia Berlian CipiSMP 26.3');
+
+  const hexEnc = encodeText('hex', 'Koordinat Base: 120, 64, -800');
+  assert.strictEqual(decodeText('auto', hexEnc.result).result, 'Koordinat Base: 120, 64, -800');
+
+  const binEnc = encodeText('biner', 'CIPISMP');
+  assert.strictEqual(decodeText('auto', binEnc.result).result, 'CIPISMP');
+
+  const morseEnc = encodeText('morse', 'HALO CIPI 26');
+  assert.strictEqual(decodeText('auto', morseEnc.result).result, 'HALO CIPI 26');
+
+  // Uji live .ecode lalu reply hasil bot dengan .dcode tanpa menyebut format
+  const cipherTesterJid = '6287799005566@s.whatsapp.net';
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: cipherTesterJid, fromMe: false, id: 'ECODE_1' },
+    pushName: 'CipherUser',
+    message: { conversation: '.ecode Rahasia Kastil Cipi' },
+  });
+  const ecodeReplyText = tagTestPayloads.find((p) => String(p?.text || '').includes('aGFzaWE') || String(p?.text || '').includes('UmFoYXNpYS'))?.text || '';
+  assert(ecodeReplyText.includes('UmFoYXNpYSBLYXN0aWwgQ2lwaQ=='), '.ecode wajib meng-encode Base64 dengan benar');
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: cipherTesterJid, fromMe: false, id: 'DCODE_REPLY_1' },
+    pushName: 'CipherUser',
+    message: {
+      extendedTextMessage: {
+        text: '.dcode',
+        contextInfo: {
+          quotedMessage: { conversation: ecodeReplyText },
+        },
+      },
+    },
+  });
+  assert(
+    tagTestPayloads.some((p) => String(p?.text || '').includes('Rahasia Kastil Cipi')),
+    'Reply pesan hasil .ecode dengan .dcode wajib otomatis mengembalikan teks asli!'
+  );
+
+  // Uji anti-penyelundupan tautan tersembunyi via Base64 saat Antilink grup aktif
+  const badLinkUserJid = '6287799007788@s.whatsapp.net';
+  getDb().run('UPDATE groups SET antilink = 1 WHERE jid = ?', [tagTestGroupJid]);
+  const hiddenInviteB64 = Buffer.from('Ayo join https://chat.whatsapp.com/AbCdEfGhIjKlMnOpQrStUv', 'utf8').toString('base64');
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: badLinkUserJid, fromMe: false, id: 'DCODE_BADLINK_1' },
+    pushName: 'TemanMabar',
+    message: { conversation: `.dcode ${hiddenInviteB64}` },
+  });
+  assert(
+    !tagTestPayloads.some((p) => String(p?.text || '').includes('chat.whatsapp.com')),
+    '.dcode tidak boleh memunculkan link grup WA terlarang saat Antilink aktif!'
+  );
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/35] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/35] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
-  console.log('│ ✅ [33/35] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
-  console.log('│ ✅ [34/35] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
-  console.log('│ ✅ [35/35] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
-  console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Live Bugfix LULUS sempurna! 🌸♡ ❖');
+  console.log('│ ✅ [31/38] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/38] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/38] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [34/38] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
+  console.log('│ ✅ [35/38] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
+  console.log('│ ✅ [36/38] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
+  console.log('│ ✅ [37/38] Paket Khas Minecraft SMP (.ach/.sach, .skin 3D/Pixel + UUID, & .poll WA Asli) lulus');
+  console.log('│ ✅ [38/38] Sandi Pintar .ecode & .dcode (Auto-Detect Base64/Hex/Biner/Morse + Anti-Link Smuggling) lulus');
+  console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Fitur Baru LULUS sempurna! 🌸♡ ❖');
 }
 
 run().catch((err) => {
