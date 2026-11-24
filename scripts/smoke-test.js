@@ -1407,6 +1407,8 @@ async function run() {
     'restartbot',
     'addprem', 'delprem', 'listprem',
     'eval', 'logs',
+    // Fitur Baru: Stiker .qc, .brat & Sistem .afk Grup
+    'qc', 'brat', 'afk',
   ];
   for (const name of requiredCommands) {
     assert(commands.has(name), `Command wajib .${name} harus terdaftar`);
@@ -1787,18 +1789,85 @@ async function run() {
     'Format chat plugin [Rank] Nama » CP-XXXXXX wajib terverifikasi otomatis!'
   );
 
+  // 36. Uji Fitur Baru: Stiker .qc (Quote Chat WA), .brat (Putih/Hijau), & Sistem .afk Grup Otomatis
+  const { renderQuoteChatSticker, renderBratSticker } = require('../lib/sticker');
+  const { getUserAfk } = require('../lib/database');
+
+  const qcWebp = await renderQuoteChatSticker({
+    senderName: 'YudhisCipi',
+    text: 'Ayo mabar di CipiSMP malam ini!',
+    theme: 'dark',
+  });
+  assert(Buffer.isBuffer(qcWebp) && qcWebp.length > 500, 'Stiker .qc wajib menghasilkan buffer WebP valid');
+  assert.strictEqual(qcWebp.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.strictEqual(qcWebp.subarray(8, 12).toString('ascii'), 'WEBP');
+
+  const bratWebp = await renderBratSticker({
+    text: 'lagi nambang netherite jangan diganggu',
+    theme: 'hijau',
+  });
+  assert(Buffer.isBuffer(bratWebp) && bratWebp.length > 500, 'Stiker .brat wajib menghasilkan buffer WebP valid');
+  assert.strictEqual(bratWebp.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.strictEqual(bratWebp.subarray(8, 12).toString('ascii'), 'WEBP');
+
+  // Uji alur live .afk di grup: pasang AFK -> teman nge-tag -> bot membalas SEDANG AFK -> user chat lagi -> AFK dicabut
+  require('../lib/group-guard').register(require('../index'));
+
+  const afkUserJid = '6287799001122@s.whatsapp.net';
+  const callerUserJid = '6287799003344@s.whatsapp.net';
+  tagTestPayloads.length = 0;
+
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: afkUserJid, fromMe: false, id: 'AFK_SET_1' },
+    pushName: 'PetualangAFK',
+    message: { conversation: '.afk Lagi makan siang bentar' },
+  });
+  const activeAfk = getUserAfk(afkUserJid);
+  assert(activeAfk && activeAfk.reason === 'Lagi makan siang bentar', 'Status AFK wajib tersimpan di SQLite');
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'AFK_TAG_1' },
+    pushName: 'TemanMabar',
+    message: {
+      extendedTextMessage: {
+        text: 'Woi @6287799001122 ayo nambang!',
+        contextInfo: { mentionedJid: [afkUserJid] },
+      },
+    },
+  });
+  assert(
+    tagTestPayloads.some(
+      (p) => String(p?.text || '').includes('Lagi makan siang bentar') && Array.isArray(p?.mentions) && p.mentions.includes(afkUserJid)
+    ),
+    'Saat member AFK di-tag, bot wajib membalas alasan AFK dengan mention asli!'
+  );
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: afkUserJid, fromMe: false, id: 'AFK_BACK_1' },
+    pushName: 'PetualangAFK',
+    message: { conversation: 'Halo aku udah balik nih!' },
+  });
+  assert.strictEqual(getUserAfk(afkUserJid), null, 'Status AFK wajib otomatis dicabut saat member kembali chat');
+  assert(
+    tagTestPayloads.some((p) => String(p?.text || '').includes('Selamat datang kembali')),
+    'Bot wajib menyambut member yang kembali dari AFK'
+  );
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/35] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/35] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
-  console.log('│ ✅ [33/35] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
-  console.log('│ ✅ [34/35] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
-  console.log('│ ✅ [35/35] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
-  console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Live Bugfix LULUS sempurna! 🌸♡ ❖');
+  console.log('│ ✅ [31/36] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/36] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/36] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [34/36] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
+  console.log('│ ✅ [35/36] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
+  console.log('│ ✅ [36/36] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
+  console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Fitur Baru LULUS sempurna! 🌸♡ ❖');
 }
 
 run().catch((err) => {

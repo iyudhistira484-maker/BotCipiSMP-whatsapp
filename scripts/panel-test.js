@@ -300,15 +300,15 @@ async function main() {
     }
   });
 
-  // 6. Overview, Power, Runtime Switches, Pairing & 79-Command Registry
-  await step('Overview, Power, Runtime Switches & 79-Command Registry verified', async () => {
+  // 6. Overview, Power, Runtime Switches, Pairing & 82-Command Registry
+  await step('Overview, Power, Runtime Switches & 82-Command Registry verified', async () => {
     const ov = await req('/api/overview');
     assert.equal(ov.status, 200);
-    assert.equal(ov.data.overview.instance.commands.commandsCount, 79);
+    assert.equal(ov.data.overview.instance.commands.commandsCount, 82);
 
     const cmds = await req('/api/commands');
     assert.equal(cmds.status, 200);
-    assert.equal(cmds.data.commands.length, 79);
+    assert.equal(cmds.data.commands.length, 82);
 
     for (const tagCmdName of ['tagall', 'hidetag']) {
       const tagCmd = cmds.data.commands.find((c) => c.name === tagCmdName);
