@@ -1883,6 +1883,31 @@ async function run() {
   });
   assert(Buffer.isBuffer(skinPng) && skinPng.length > 1500 && skinPng[1] === 0x50);
 
+  // Uji live .skin <Java>, .skin <.Bedrock>, dan .skin tanpa argumen (akun tertaut di tabel links)
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: '6287799004411@s.whatsapp.net', fromMe: false, id: 'SKIN_JAVA_1' },
+    pushName: 'CekJava',
+    message: { conversation: '.skin Notch' },
+  });
+  const skinJavaMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.image));
+  assert(
+    skinJavaMsg && String(skinJavaMsg.caption || '').includes('Notch'),
+    '.skin Notch wajib mengirim kartu PNG & caption username Notch!'
+  );
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: '6287799004422@s.whatsapp.net', fromMe: false, id: 'SKIN_BE_1' },
+    pushName: 'CekBedrock',
+    message: { conversation: '.skin .PlayerBedrock' },
+  });
+  const skinBedrockMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.image));
+  assert(
+    skinBedrockMsg && String(skinBedrockMsg.caption || '').includes('Bedrock'),
+    '.skin .PlayerBedrock wajib mengenali akun Geyser Bedrock!'
+  );
+
   // Uji live .poll cepat (otomatis opsi Setuju / Tidak Setuju) & .sach stiker di grup
   tagTestPayloads.length = 0;
   await handleIncomingMessage(tagTestSock, {

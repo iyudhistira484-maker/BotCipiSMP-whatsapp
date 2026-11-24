@@ -175,13 +175,13 @@ module.exports = {
       if (!parsed.valid) {
         await ctx.reply(
           formatError('Username Minecraft Tidak Valid', [
-            parsed.reason || 'Gunakan huruf, angka, garis bawah (3–16 karakter), atau awalan titik untuk Bedrock.',
+            'Gunakan huruf, angka, garis bawah (3–16 karakter), atau awalan titik untuk Bedrock.',
             `Contoh: ${mono(`${p}skin Notch`)} atau ${mono(`${p}skin .PlayerBedrock`)}`,
           ])
         );
         return;
       }
-      targetMcName = parsed.username;
+      targetMcName = parsed.display || parsed.raw;
     }
 
     if (!targetMcName) {
@@ -223,7 +223,7 @@ module.exports = {
       });
 
       const captionLines = [
-        `🧱 *${boldSans(`SKIN PLAYER: ${skinData.displayUsername}`)}*`,
+        `🧱 *${boldSans('SKIN PLAYER')}:* ${mono(skinData.displayUsername)}`,
         DIVIDER,
         `• Edisi : *${skinData.edition}*`,
         skinData.officialUuid ? `• UUID Resmi : ${mono(skinData.officialUuid)}` : '',
