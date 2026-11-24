@@ -42,13 +42,35 @@
     }
   }
 
-  // ─── Mobile / Tablet Off-Canvas Sidebar Controller ───
+  // ─── Desktop Collapsible & Mobile Off-Canvas Sidebar Controller ───
   function setSidebarOpen(open) {
     const sidebar = $('sidebar');
     const backdrop = $('sidebarBackdrop');
-    if (sidebar) sidebar.classList.toggle('open', Boolean(open));
-    if (backdrop) backdrop.classList.toggle('open', Boolean(open));
-    document.body.classList.toggle('nav-locked', Boolean(open) && window.innerWidth < 1024);
+    const isMobileOrTablet = window.innerWidth < 1024;
+    if (sidebar) sidebar.classList.toggle('open', Boolean(open) && isMobileOrTablet);
+    if (backdrop) backdrop.classList.toggle('open', Boolean(open) && isMobileOrTablet);
+    document.body.classList.toggle('nav-locked', Boolean(open) && isMobileOrTablet);
+  }
+
+  function toggleSidebarMenu() {
+    if (window.innerWidth >= 1024) {
+      const shell = $('appShell');
+      if (!shell) return;
+      const collapsed = shell.classList.toggle('sidebar-collapsed');
+      setSidebarOpen(false);
+      try {
+        localStorage.setItem('cp-sidebar-collapsed', collapsed ? '1' : '0');
+      } catch {
+        // Ignore storage error
+      }
+      if (state.activeView === 'console') {
+        requestAnimationFrame(drawAllCharts);
+      }
+      return;
+    }
+
+    const isOpen = $('sidebar') && $('sidebar').classList.contains('open');
+    setSidebarOpen(!isOpen);
   }
 
   // ─── Formatting Utilities ───
@@ -879,10 +901,16 @@
     $('themeToggleBtn').addEventListener('click', toggleTheme);
     $('loginThemeBtn').addEventListener('click', toggleTheme);
 
-    $('mobileMenuBtn').addEventListener('click', () => {
-      const isOpen = $('sidebar').classList.contains('open');
-      setSidebarOpen(!isOpen);
-    });
+    $('mobileMenuBtn').addEventListener('click', toggleSidebarMenu);
+
+    try {
+      if (window.innerWidth >= 1024 && localStorage.getItem('cp-sidebar-collapsed') === '1') {
+        const shell = $('appShell');
+        if (shell) shell.classList.add('sidebar-collapsed');
+      }
+    } catch {
+      // Ignore storage error
+    }
 
     const closeSidebarBtn = $('sidebarCloseBtn');
     if (closeSidebarBtn) {
