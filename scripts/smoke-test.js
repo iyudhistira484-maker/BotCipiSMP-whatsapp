@@ -1877,7 +1877,7 @@ async function run() {
   assert.strictEqual(achSticker.subarray(8, 12).toString('ascii'), 'WEBP');
 
   const skinPng = await renderMinecraftSkinCard({
-    username: 'YudhisCipi',
+    username: 'Cello',
     edition: 'Java Edition',
     offlineUuid: '12345678-1234-3123-8123-1234567890ab',
   });
@@ -1888,12 +1888,12 @@ async function run() {
   await handleIncomingMessage(tagTestSock, {
     key: { remoteJid: tagTestGroupJid, participant: '6287799004411@s.whatsapp.net', fromMe: false, id: 'SKIN_JAVA_1' },
     pushName: 'CekJava',
-    message: { conversation: '.skin Notch' },
+    message: { conversation: '.skin Cello' },
   });
   const skinJavaMsg = tagTestPayloads.find((p) => Buffer.isBuffer(p?.image));
   assert(
-    skinJavaMsg && String(skinJavaMsg.caption || '').includes('Notch'),
-    '.skin Notch wajib mengirim kartu PNG & caption username Notch!'
+    skinJavaMsg && String(skinJavaMsg.caption || '').includes('Cello'),
+    '.skin Cello wajib mengirim kartu PNG & caption username Cello!'
   );
 
   tagTestPayloads.length = 0;
