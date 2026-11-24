@@ -1407,8 +1407,9 @@ async function run() {
     'restartbot',
     'addprem', 'delprem', 'listprem',
     'eval', 'logs',
-    // Fitur Baru: Stiker .qc, .brat & Sistem .afk Grup
+    // Fitur Baru: Stiker .qc, .brat, Sistem .afk Grup, & Paket Minecraft (.ach, .skin, .poll)
     'qc', 'brat', 'afk',
+    'ach', 'skin', 'poll',
   ];
   for (const name of requiredCommands) {
     assert(commands.has(name), `Command wajib .${name} harus terdaftar`);
@@ -1855,18 +1856,75 @@ async function run() {
     'Bot wajib menyambut member yang kembali dari AFK'
   );
 
+  // 37. Uji Paket Khas Minecraft SMP: .ach (PNG & Stiker .sach), .skin (Kartu 3D/Pixel + UUID v3), & .poll (WA Poll Asli)
+  const { renderMinecraftAchievementCard, renderMinecraftSkinCard } = require('../lib/card');
+  const { renderAchievementSticker } = require('../lib/sticker');
+
+  const achPng = await renderMinecraftAchievementCard({
+    title: 'Achievement Get!',
+    description: 'Dapat Full Netherite di CipiSMP!',
+    icon: 'creeper',
+  });
+  assert(Buffer.isBuffer(achPng) && achPng.length > 800 && achPng[1] === 0x50 && achPng[2] === 0x4e && achPng[3] === 0x47);
+
+  const achSticker = await renderAchievementSticker({
+    title: 'Challenge Complete!',
+    description: 'Solo Ender Dragon!',
+    challenge: true,
+  });
+  assert.strictEqual(achSticker.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.strictEqual(achSticker.subarray(8, 12).toString('ascii'), 'WEBP');
+
+  const skinPng = await renderMinecraftSkinCard({
+    username: 'YudhisCipi',
+    edition: 'Java Edition',
+    offlineUuid: '12345678-1234-3123-8123-1234567890ab',
+  });
+  assert(Buffer.isBuffer(skinPng) && skinPng.length > 1500 && skinPng[1] === 0x50);
+
+  // Uji live .poll cepat (otomatis opsi Setuju / Tidak Setuju) & .sach stiker di grup
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'POLL_QUICK_1' },
+    pushName: 'TemanMabar',
+    message: { conversation: '.poll Malam ini event Boss Fight?' },
+  });
+  assert(
+    tagTestPayloads.some(
+      (p) =>
+        p?.poll &&
+        p.poll.name === 'Malam ini event Boss Fight?' &&
+        Array.isArray(p.poll.values) &&
+        p.poll.values.includes('Setuju') &&
+        p.poll.selectableCount === 1
+    ),
+    '.poll cepat wajib mengirim payload native WhatsApp Poll dengan opsi Setuju/Tidak Setuju!'
+  );
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'SACH_1' },
+    pushName: 'TemanMabar',
+    message: { conversation: '.sach Kena Ledakan Creeper!' },
+  });
+  assert(
+    tagTestPayloads.some((p) => Buffer.isBuffer(p?.sticker) && p.sticker.subarray(8, 12).toString('ascii') === 'WEBP'),
+    '.sach wajib mengirim stiker WebP Achievement Minecraft!'
+  );
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/36] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/36] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
-  console.log('│ ✅ [33/36] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
-  console.log('│ ✅ [34/36] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
-  console.log('│ ✅ [35/36] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
-  console.log('│ ✅ [36/36] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
+  console.log('│ ✅ [31/37] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/37] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/37] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [34/37] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
+  console.log('│ ✅ [35/37] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
+  console.log('│ ✅ [36/37] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
+  console.log('│ ✅ [37/37] Paket Khas Minecraft SMP (.ach/.sach, .skin 3D/Pixel + UUID, & .poll WA Asli) lulus');
   console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Fitur Baru LULUS sempurna! 🌸♡ ❖');
 }
 

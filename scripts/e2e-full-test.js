@@ -301,13 +301,16 @@ async function runE2E() {
     await dispatchCmd('.leaderboard saldo');
     await dispatchCmd('.level');
 
-    // Stiker, QC, Brat, AFK & ToImg (menguji render stiker lokal + AFK grup)
+    // Stiker, QC, Brat, AFK, Achievement, Skin, Poll & ToImg
     await dispatchCmd('.sticker');
     await dispatchCmd('.toimg');
     await dispatchCmd('.qc Lagi nambang diamond di CipiSMP!');
     await dispatchCmd('.brat hijau cipi smp paling asik');
+    await dispatchCmd('.ach Dapat Full Netherite!');
+    await dispatchCmd('.skin YudhisCipi');
+    await dispatchCmd('.poll Event malam ini? | PvP Arena | Parkour | Boss Fight');
     await dispatchCmd('.afk Lagi nambang netherite sebentar', { sender: memberJid });
-    console.log('│ ✅ Fase 2 (23/23 command Grup, AFK, Ekonomi, Level, Stiker, .qc & .brat) LULUS');
+    console.log('│ ✅ Fase 2 (26/26 command Grup, AFK, Poll, Ekonomi, Level, Stiker, .qc, .brat, .ach & .skin) LULUS');
 
     // ===================================================================
     // FASE 3 — MINECRAFT CARD, AI, DOWNLOADER, ANIME & BROADCAST (13 Command)
