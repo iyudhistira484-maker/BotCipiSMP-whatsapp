@@ -1407,9 +1407,10 @@ async function run() {
     'restartbot',
     'addprem', 'delprem', 'listprem',
     'eval', 'logs',
-    // Fitur Baru: Stiker .qc, .brat, Sistem .afk Grup, & Paket Minecraft (.ach, .skin, .poll)
+    // Fitur Baru: Stiker .qc, .brat, Sistem .afk Grup, Paket Minecraft (.ach, .skin, .poll) & Sandi (.encode/.ecode, .decode/.dcode)
     'qc', 'brat', 'afk',
     'ach', 'skin', 'poll',
+    'encode', 'decode',
   ];
   for (const name of requiredCommands) {
     assert(commands.has(name), `Command wajib .${name} harus terdaftar`);
@@ -1912,19 +1913,77 @@ async function run() {
     '.sach wajib mengirim stiker WebP Achievement Minecraft!'
   );
 
+  // 38. Uji Fitur .ecode (.encode) & .dcode (.decode Auto-Detect + Reply Bot + Anti-Smuggling Link)
+  const { encodeText, decodeText } = require('../lib/codec');
+
+  const b64Enc = encodeText('b64', 'Rahasia Berlian CipiSMP 26.3');
+  assert.strictEqual(decodeText('auto', b64Enc.result).result, 'Rahasia Berlian CipiSMP 26.3');
+
+  const hexEnc = encodeText('hex', 'Koordinat Base: 120, 64, -800');
+  assert.strictEqual(decodeText('auto', hexEnc.result).result, 'Koordinat Base: 120, 64, -800');
+
+  const binEnc = encodeText('biner', 'CIPISMP');
+  assert.strictEqual(decodeText('auto', binEnc.result).result, 'CIPISMP');
+
+  const morseEnc = encodeText('morse', 'HALO CIPI 26');
+  assert.strictEqual(decodeText('auto', morseEnc.result).result, 'HALO CIPI 26');
+
+  // Uji live .ecode lalu reply hasil bot dengan .dcode tanpa menyebut format
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'ECODE_1' },
+    pushName: 'TemanMabar',
+    message: { conversation: '.ecode Rahasia Kastil Cipi' },
+  });
+  const ecodeReplyText = tagTestPayloads.find((p) => String(p?.text || '').includes('aGFzaWE') || String(p?.text || '').includes('UmFoYXNpYS'))?.text || '';
+  assert(ecodeReplyText.includes('UmFoYXNpYSBLYXN0aWwgQ2lwaQ=='), '.ecode wajib meng-encode Base64 dengan benar');
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'DCODE_REPLY_1' },
+    pushName: 'TemanMabar',
+    message: {
+      extendedTextMessage: {
+        text: '.dcode',
+        contextInfo: {
+          quotedMessage: { conversation: ecodeReplyText },
+        },
+      },
+    },
+  });
+  assert(
+    tagTestPayloads.some((p) => String(p?.text || '').includes('Rahasia Kastil Cipi')),
+    'Reply pesan hasil .ecode dengan .dcode wajib otomatis mengembalikan teks asli!'
+  );
+
+  // Uji anti-penyelundupan tautan tersembunyi via Base64 saat Antilink grup aktif
+  getDb().run('UPDATE groups SET antilink = 1 WHERE jid = ?', [tagTestGroupJid]);
+  const hiddenInviteB64 = Buffer.from('Ayo join https://chat.whatsapp.com/AbCdEfGhIjKlMnOpQrStUv', 'utf8').toString('base64');
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: tagTestGroupJid, participant: callerUserJid, fromMe: false, id: 'DCODE_BADLINK_1' },
+    pushName: 'TemanMabar',
+    message: { conversation: `.dcode ${hiddenInviteB64}` },
+  });
+  assert(
+    !tagTestPayloads.some((p) => String(p?.text || '').includes('chat.whatsapp.com')),
+    '.dcode tidak boleh memunculkan link grup WA terlarang saat Antilink aktif!'
+  );
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/37] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/37] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
-  console.log('│ ✅ [33/37] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
-  console.log('│ ✅ [34/37] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
-  console.log('│ ✅ [35/37] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
-  console.log('│ ✅ [36/37] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
-  console.log('│ ✅ [37/37] Paket Khas Minecraft SMP (.ach/.sach, .skin 3D/Pixel + UUID, & .poll WA Asli) lulus');
+  console.log('│ ✅ [31/38] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/38] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/38] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [34/38] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
+  console.log('│ ✅ [35/38] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
+  console.log('│ ✅ [36/38] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
+  console.log('│ ✅ [37/38] Paket Khas Minecraft SMP (.ach/.sach, .skin 3D/Pixel + UUID, & .poll WA Asli) lulus');
+  console.log('│ ✅ [38/38] Sandi Pintar .ecode & .dcode (Auto-Detect Base64/Hex/Biner/Morse + Anti-Link Smuggling) lulus');
   console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Fitur Baru LULUS sempurna! 🌸♡ ❖');
 }
 

@@ -56,8 +56,8 @@ module.exports = {
     const out = [
       `💤 *${boldSans('STATUS AFK AKTIF')}*`,
       DIVIDER,
-      `• ${tag} sekarang sedang AFK.`,
-      `• Alasan : ${afkState.reason}`,
+      keep(`• ${tag} sekarang sedang AFK.`),
+      keep(`• Alasan : ${afkState.reason}`),
     ].join('\n');
 
     await ctx.reply(out, {
