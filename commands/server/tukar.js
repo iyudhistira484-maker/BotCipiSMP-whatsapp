@@ -127,6 +127,17 @@ module.exports = {
         return;
       }
 
+      if (res.reason === 'player_offline') {
+        await ctx.reply(
+          formatWarning('Karakter Sedang Offline (Koin Utuh)', [
+            `Karakter ${keep(res.mcUsername || linkInfo.mcUsername)} belum berada di dalam server ${keep(config.minecraft.host)}.`,
+            'Masuk ke dalam dunia Minecraft terlebih dahulu baru jalankan penukaran hadiah ya!',
+            `Sakura Coin kamu 100% aman dan belum terpotong.`,
+          ])
+        );
+        return;
+      }
+
       await ctx.reply(
         formatError('Pengiriman Item Gagal (Koin Utuh)', [
           'Server Minecraft sedang tidak dapat menerima perintah saat ini.',
