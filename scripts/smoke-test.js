@@ -1723,16 +1723,81 @@ async function run() {
     'Member yang menjalankan .tt <link tiktok> TIDAK boleh kena peringatan Antilink!'
   );
 
+  // 35. Regresi .link Akun Minecraft Real-World:
+  //     - Ketik .link <6-digit PIN> langsung tanpa kata "verif" TIDAK menimpa username, melainkan langsung memverifikasi!
+  //     - Ketik .link kirim mengirim ulang PIN tanpa merusak data pending
+  //     - Ketik .link CP-XXXXXX di WA memberi peringatan jelas tanpa menimpa username
+  //     - Format chat plugin Paper/Purpur/LuckPerms ([Rank] Nama: CP-XXXXXX & Nama » CP-XXXXXX) terbaca otomatis!
+  const linkRealMemberJid = '6287711223344@s.whatsapp.net';
+  const linkCmdObj = commands.get('link');
+  const prevLinkCd = linkCmdObj.cooldown;
+  linkCmdObj.cooldown = 0;
+  getDb().run('UPDATE groups SET antilink = 0 WHERE jid = ?', [tagTestGroupJid]);
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: linkRealMemberJid, fromMe: false, id: 'LINK_REAL_1' },
+    pushName: 'PlayerCipi',
+    message: { conversation: '.link CipiHero26' },
+  });
+  let pendingReal = getDb().get('SELECT * FROM links WHERE jid = ?', [linkRealMemberJid]);
+  assert(pendingReal && pendingReal.status === 'pending', '.link CipiHero26 wajib membuat status pending');
+  assert.strictEqual(pendingReal.mc_username, 'CipiHero26');
+
+  const [realPubCode, realSecretPin] = String(pendingReal.verify_code).split('|');
+
+  // Salah tempel kode publik CP-XXXXXX di WA -> TIDAK boleh menimpa mc_username!
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: linkRealMemberJid, fromMe: false, id: 'LINK_REAL_WRONG_CODE' },
+    pushName: 'PlayerCipi',
+    message: { conversation: `.link ${realPubCode}` },
+  });
+  pendingReal = getDb().get('SELECT * FROM links WHERE jid = ?', [linkRealMemberJid]);
+  assert.strictEqual(pendingReal.mc_username, 'CipiHero26', 'Salah ketik .link CP-XXXXXX tidak boleh menimpa username!');
+  assert.strictEqual(pendingReal.status, 'pending');
+
+  // Kirim ulang PIN via .link kirim -> tetap pending dengan username CipiHero26
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: linkRealMemberJid, fromMe: false, id: 'LINK_REAL_RESEND' },
+    pushName: 'PlayerCipi',
+    message: { conversation: '.link kirim' },
+  });
+  pendingReal = getDb().get('SELECT * FROM links WHERE jid = ?', [linkRealMemberJid]);
+  assert.strictEqual(pendingReal.mc_username, 'CipiHero26');
+
+  // Ketik .link <6-digit PIN> langsung (tanpa kata "verif") -> WAJIB langsung verified!
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: linkRealMemberJid, fromMe: false, id: 'LINK_REAL_PIN_DIRECT' },
+    pushName: 'PlayerCipi',
+    message: { conversation: `.link ${realSecretPin}` },
+  });
+  const verifiedReal = getLinkedAccountDetails(linkRealMemberJid);
+  assert(verifiedReal && verifiedReal.status === 'verified', '.link <6-digit PIN> wajib langsung memverifikasi akun!');
+  assert.strictEqual(verifiedReal.mcUsername, 'CipiHero26', 'Username tidak boleh tertimpa menjadi angka PIN!');
+  linkCmdObj.cooldown = prevLinkCd;
+
+  // Uji verifikasi chat in-game dengan plugin rank Paper/Purpur/LuckPerms ([Member] Nama: CP-XXXXXX)
+  const rankedMemberJid = '6287755667788@s.whatsapp.net';
+  const rankedInit = await initiateAccountLink(rankedMemberJid, 'SultanPurpur');
+  assert.strictEqual(rankedInit.ok, true);
+  await handleMinecraftConsoleLine(
+    `[18:30:11] [Async Chat Thread - #2/INFO]: [Member] SultanPurpur » halo min ${rankedInit.publicChatCode}`
+  );
+  const rankedVerified = getLinkedAccountDetails(rankedMemberJid);
+  assert(
+    rankedVerified && rankedVerified.status === 'verified',
+    'Format chat plugin [Rank] Nama » CP-XXXXXX wajib terverifikasi otomatis!'
+  );
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/34] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/34] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
-  console.log('│ ✅ [33/34] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
-  console.log('│ ✅ [34/34] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
+  console.log('│ ✅ [31/35] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/35] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/35] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [34/35] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
+  console.log('│ ✅ [35/35] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
   console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Live Bugfix LULUS sempurna! 🌸♡ ❖');
 }
 

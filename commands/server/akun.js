@@ -76,6 +76,7 @@ module.exports = {
               { command: `${p}unlink`, text: '❖ Lepas Tautan' },
             ]
           : [
+              { command: `${p}link kirim`, text: '🔄 Kirim Ulang PIN ke MC' },
               { command: `${p}unlink`, text: '❌ Batalkan Verifikasi' },
             ],
     });
