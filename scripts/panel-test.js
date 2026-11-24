@@ -169,6 +169,10 @@ async function main() {
     assert.ok(css.includes('[data-theme="dark"]'), 'styles.css harus memiliki palet Dark Mode');
     assert.ok(css.includes('[data-theme="light"]'), 'styles.css harus memiliki palet Light Mode');
     assert.ok(css.includes('tabular-nums'), 'styles.css harus menerapkan font-variant-numeric: tabular-nums');
+    assert.ok(css.includes('@media (min-width: 1024px)'), 'styles.css harus mengunci backdrop agar tidak pernah nge-blur di Desktop');
+    assert.ok(css.includes('.app-shell.sidebar-collapsed'), 'styles.css harus mendukung collapse sidebar bersih di Desktop');
+    assert.ok(css.includes('.btn.sidebar-close-btn'), 'Tombol close sidebar harus tersembunyi di Desktop');
+    assert.ok(appJs.includes('toggleSidebarMenu'), 'app.js harus membedakan toggle sidebar Desktop (collapse) vs Mobile (drawer)');
     assert.ok(css.includes('@media (max-width: 1179px)'), 'styles.css harus memiliki breakpoint tablet landscape');
     assert.ok(css.includes('@media (max-width: 1023px)'), 'styles.css harus memiliki breakpoint tablet portrait');
     assert.ok(css.includes('@media (max-width: 767px)'), 'styles.css harus memiliki breakpoint mobile');
