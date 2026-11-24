@@ -195,11 +195,11 @@ module.exports = {
     }
 
     try {
-      // Cek apakah username ini tertaut ke member WhatsApp CipiSMP di SQLite
+      // Cek apakah username ini tertaut ke member WhatsApp CipiSMP di SQLite (tabel links)
       let linkedTag = '';
       try {
         const row = getDb().get(
-          "SELECT jid, account_type FROM mc_links WHERE LOWER(mc_username) = LOWER(?) AND status = 'verified' LIMIT 1",
+          "SELECT jid, is_bedrock FROM links WHERE LOWER(mc_username) = LOWER(?) AND status = 'verified' LIMIT 1",
           [targetMcName]
         );
         if (row?.jid) {
@@ -207,7 +207,7 @@ module.exports = {
           linkedTag = phone ? `+${phone} (Terverifikasi)` : 'Member Terverifikasi';
         }
       } catch {
-        // Abaikan bila tabel belum memiliki kecocokan
+        // Abaikan bila belum ada kecocokan
       }
 
       const skinData = await resolveMinecraftSkinData(targetMcName);
