@@ -1669,15 +1669,70 @@ async function run() {
   const ownerNames = ownerCats.flatMap((c) => c.commands.map((cmd) => cmd.name));
   assert(ownerNames.includes('tagall') && ownerNames.includes('hidetag'), 'tagall/hidetag wajib tampil pada menu Owner');
 
+  // 34. Regresi Antilink Pintar: Izinkan .tt/.tiktok/.ig/.reels/.yt/.ytmp3/.dl dengan URL resmi, blokir penyelundupan link lain!
+  for (const validDlCmd of [
+    '.tt https://vt.tiktok.com/ZSY12345/',
+    '.tiktok https://www.tiktok.com/@user/video/7123456789',
+    '.ig https://www.instagram.com/reel/Cxyz123/?igsh=abc',
+    '.reels https://instagr.am/p/Abc123/',
+    '.yt https://youtu.be/dQw4w9WgXcQ',
+    '.ytmp3 https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    '.dl https://youtube.com/shorts/AbcDef123',
+  ]) {
+    const checkValid = await detectDisallowedLink(null, tagTestGroupJid, validDlCmd, true);
+    assert.strictEqual(
+      checkValid,
+      null,
+      `Command downloader sah "${validDlCmd}" TIDAK boleh dihapus oleh Antilink!`
+    );
+  }
+
+  for (const sneakyBad of [
+    '.tt https://chat.whatsapp.com/AbCdEfGhIjKlMnOpQrSt',
+    '.tt https://vt.tiktok.com/ZSY123/ join yuk https://chat.whatsapp.com/AbCdEfGhIjKlMnOpQrSt',
+    '.ig https://phishing-tiktok.com/login',
+    'tonton ini https://vt.tiktok.com/ZSY12345/',
+  ]) {
+    const checkBad = await detectDisallowedLink(null, tagTestGroupJid, sneakyBad, false);
+    assert(
+      checkBad !== null,
+      `Pesan tautan terlarang / penyelundupan "${sneakyBad}" WAJIB tetap tertangkap Antilink!`
+    );
+  }
+
+  // Uji live lewat router saat antilink=1 aktif di grup: member kirim .tt <url> TIDAK boleh di-delete!
+  ensureGroup(tagTestGroupJid, 'CipiSMP Tag Guard Group');
+  getDb().run('UPDATE groups SET antilink = 1 WHERE jid = ?', [tagTestGroupJid]);
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: {
+      remoteJid: tagTestGroupJid,
+      participant: regularMemberJid,
+      fromMe: false,
+      id: 'ANTILINK_DL_LIVE_1',
+    },
+    pushName: 'MemberReguler',
+    message: { conversation: '.tt https://vt.tiktok.com/ZSY12345/' },
+  });
+  assert(
+    !tagTestPayloads.some((p) => p && p.delete),
+    'Pesan member yang menjalankan .tt <link tiktok> saat antilink aktif TIDAK boleh dihapus!'
+  );
+  assert(
+    !tagTestPayloads.some((p) => String(p?.text || '').includes('ᴀɴᴛɪʟɪɴᴋ ɢʀᴜᴘ ᴀᴋᴛɪꜰ')),
+    'Member yang menjalankan .tt <link tiktok> TIDAK boleh kena peringatan Antilink!'
+  );
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/33] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/33] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
-  console.log('│ ✅ [33/33] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [31/34] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/34] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/34] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [34/34] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
   console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Live Bugfix LULUS sempurna! 🌸♡ ❖');
 }
 
