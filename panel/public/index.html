@@ -15,8 +15,8 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/vendor/xterm.css?v=20261127p" />
-  <link rel="stylesheet" href="/styles.css?v=20261127p" />
+  <link rel="stylesheet" href="/vendor/xterm.css?v=20261127s" />
+  <link rel="stylesheet" href="/styles.css?v=20261127s" />
 </head>
 <body>
   <!-- ═══ Authentication Gate ═══ -->
@@ -196,6 +196,12 @@
         </div>
 
         <div class="header-controls">
+          <button type="button" id="cmdPaletteBtn" class="btn btn-sm cmd-palette-trigger" title="Open Quick Command Palette (Ctrl+K / Cmd+K)">
+            <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span class="cmd-trigger-label">Command</span>
+            <kbd class="kbd-hint mono">Ctrl K</kbd>
+          </button>
+
           <div class="power-group">
             <button type="button" id="btnWaConnect" class="btn btn-success btn-sm" title="Start / Reconnect WhatsApp Socket">
               <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -912,6 +918,29 @@
     </aside>
   </div>
 
+  <!-- ═══ Quick Operator Command Palette (Ctrl+K / Cmd+K) ═══ -->
+  <div id="cmdPaletteBackdrop" class="modal-backdrop cmd-palette-backdrop hidden" role="dialog" aria-modal="true" aria-label="Operator Command Palette">
+    <div class="cmd-palette-card">
+      <div class="cmd-palette-search">
+        <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input
+          id="cmdPaletteInput"
+          type="text"
+          class="cmd-palette-input"
+          placeholder="Jump to view or run operator action (vps, console, reload, snapshot, theme)..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <kbd class="kbd-hint mono">ESC</kbd>
+      </div>
+      <div id="cmdPaletteList" class="cmd-palette-list" role="listbox"></div>
+      <div class="cmd-palette-foot mono">
+        <span>Up / Down to select · Enter to execute</span>
+        <span>CP Operator Palette</span>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ Confirmation Modal ═══ -->
   <div id="confirmModalBackdrop" class="modal-backdrop hidden">
     <div class="modal-card">
@@ -926,9 +955,9 @@
 
   <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
-  <script src="/vendor/xterm.js?v=20261127p"></script>
-  <script src="/vendor/addon-fit.js?v=20261127p"></script>
-  <script src="/charts.js?v=20261127p"></script>
-  <script src="/app.js?v=20261127p"></script>
+  <script src="/vendor/xterm.js?v=20261127s"></script>
+  <script src="/vendor/addon-fit.js?v=20261127s"></script>
+  <script src="/charts.js?v=20261127s"></script>
+  <script src="/app.js?v=20261127s"></script>
 </body>
 </html>
