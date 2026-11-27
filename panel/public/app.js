@@ -24,6 +24,11 @@
     vpsTerm: null,
     vpsFitAddon: null,
     vpsPtyWs: null,
+    vpsPtySse: null,
+    vpsPtySessionId: '',
+    vpsPtyInputQueue: '',
+    vpsPtyFlushInFlight: false,
+    vpsPtyFallbackTimer: null,
     vpsPtyPingTimer: null,
     vpsTallMode: false,
     vpsProcFilter: '',
@@ -398,7 +403,47 @@
     return data;
   }
 
+  let topActivityTimer = null;
+  function pulseTopActivity() {
+    const bar = $('topActivityBar');
+    if (!bar) return;
+    bar.classList.remove('active');
+    void bar.offsetWidth;
+    bar.classList.add('active');
+    clearTimeout(topActivityTimer);
+    topActivityTimer = setTimeout(() => {
+      bar.classList.remove('active');
+    }, 680);
+  }
+
+  function bindSpotlightCards() {
+    let rafPending = false;
+    let lastEv = null;
+    document.addEventListener(
+      'pointermove',
+      (ev) => {
+        lastEv = ev;
+        if (rafPending) return;
+        rafPending = true;
+        requestAnimationFrame(() => {
+          rafPending = false;
+          if (!lastEv) return;
+          const card = lastEv.target?.closest?.('.metric-card, .chart-box');
+          if (!card) return;
+          const r = card.getBoundingClientRect();
+          card.style.setProperty('--mx', `${Math.round(lastEv.clientX - r.left)}px`);
+          card.style.setProperty('--my', `${Math.round(lastEv.clientY - r.top)}px`);
+        });
+      },
+      { passive: true }
+    );
+  }
+
   function closePtySocket() {
+    if (state.vpsPtyFallbackTimer) {
+      clearTimeout(state.vpsPtyFallbackTimer);
+      state.vpsPtyFallbackTimer = null;
+    }
     if (state.vpsPtyPingTimer) {
       clearInterval(state.vpsPtyPingTimer);
       state.vpsPtyPingTimer = null;
@@ -406,12 +451,24 @@
     if (state.vpsPtyWs) {
       try {
         state.vpsPtyWs.onclose = null;
+        state.vpsPtyWs.onerror = null;
         state.vpsPtyWs.close();
       } catch {
         // Ignore close error
       }
       state.vpsPtyWs = null;
     }
+    if (state.vpsPtySse) {
+      try {
+        state.vpsPtySse.close();
+      } catch {
+        // Ignore close error
+      }
+      state.vpsPtySse = null;
+    }
+    state.vpsPtySessionId = '';
+    state.vpsPtyInputQueue = '';
+    state.vpsPtyFlushInFlight = false;
   }
 
   // ─── Auth Gate ───
@@ -1084,6 +1141,15 @@
     RIGHT: '\x1b[C',
   };
 
+  function setPtyBanner(visible, text) {
+    const banner = $('vpsPtyStatusBanner');
+    const txt = $('vpsPtyStatusText');
+    if (txt && text) txt.textContent = text;
+    if (banner) {
+      banner.classList.toggle('ready-hidden', !visible);
+    }
+  }
+
   function setPtyBadgeState(status, labelText) {
     const badge = $('vpsShellStateBadge');
     if (!badge) return;
@@ -1091,11 +1157,56 @@
     badge.className = `badge ${status}`;
   }
 
+  async function flushHttpPtyInput() {
+    if (state.vpsPtyFlushInFlight || !state.vpsPtyInputQueue || !state.vpsPtySessionId) return;
+    state.vpsPtyFlushInFlight = true;
+    const chunk = state.vpsPtyInputQueue;
+    state.vpsPtyInputQueue = '';
+    try {
+      await api('/api/vps/pty/input', {
+        method: 'POST',
+        body: { sessionId: state.vpsPtySessionId, data: chunk },
+      });
+    } catch {
+      // Session ended
+    } finally {
+      state.vpsPtyFlushInFlight = false;
+      if (state.vpsPtyInputQueue && state.vpsPtySessionId) {
+        flushHttpPtyInput();
+      }
+    }
+  }
+
+  function isPtyConnected() {
+    return (
+      (state.vpsPtyWs && state.vpsPtyWs.readyState === WebSocket.OPEN) ||
+      (state.vpsPtySse && state.vpsPtySse.readyState === EventSource.OPEN && Boolean(state.vpsPtySessionId))
+    );
+  }
+
   function sendPtyPayload(payload) {
     const ws = state.vpsPtyWs;
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(payload));
       return true;
+    }
+    if (state.vpsPtySse && state.vpsPtySessionId) {
+      if (payload.type === 'input' && typeof payload.data === 'string') {
+        state.vpsPtyInputQueue += payload.data;
+        flushHttpPtyInput();
+        return true;
+      }
+      if (payload.type === 'resize') {
+        api('/api/vps/pty/resize', {
+          method: 'POST',
+          body: {
+            sessionId: state.vpsPtySessionId,
+            cols: payload.cols,
+            rows: payload.rows,
+          },
+        }).catch(() => {});
+        return true;
+      }
     }
     return false;
   }
@@ -1169,7 +1280,7 @@
     term.open(mount);
 
     term.onData((data) => {
-      if (!sendPtyInput(data) && (!state.vpsPtyWs || state.vpsPtyWs.readyState === WebSocket.CLOSED)) {
+      if (!sendPtyInput(data) && !isPtyConnected()) {
         connectPtyWebSocket(false);
       }
     });
@@ -1193,6 +1304,89 @@
     return term;
   }
 
+  function connectPtySseFallback(cols, rows) {
+    const term = ensureXtermMounted();
+    if (!term) return;
+
+    if (state.vpsPtyWs) {
+      try {
+        state.vpsPtyWs.onclose = null;
+        state.vpsPtyWs.onerror = null;
+        state.vpsPtyWs.close();
+      } catch {
+        // Ignore
+      }
+      state.vpsPtyWs = null;
+    }
+
+    setPtyBadgeState('warn', 'SSE PTY...');
+    setPtyBanner(true, 'Proxy WebSocket upgrade blocked — connecting via SSE PTY...');
+
+    const tokenParam = state.token ? `&token=${encodeURIComponent(state.token)}` : '';
+    const sseUrl = `/api/vps/pty/stream?cols=${cols}&rows=${rows}${tokenParam}`;
+    const es = new EventSource(sseUrl);
+    state.vpsPtySse = es;
+
+    es.addEventListener('session', (ev) => {
+      try {
+        const d = JSON.parse(ev.data);
+        if (d.sessionId) state.vpsPtySessionId = d.sessionId;
+      } catch {
+        // Ignore
+      }
+    });
+
+    es.addEventListener('ready', (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.sessionId) state.vpsPtySessionId = msg.sessionId;
+        setPtyBadgeState('ok', 'PTY LIVE · SSE');
+        setPtyBanner(false);
+        if ($('vpsTtyBadge')) {
+          $('vpsTtyBadge').textContent = msg.tty || '/dev/pts';
+          $('vpsTtyBadge').title = `Shell PID ${msg.pid || '-'} (${msg.backend || 'pty'} via SSE)`;
+        }
+        fitVpsPty();
+        term.focus();
+      } catch {
+        // Ignore
+      }
+    });
+
+    es.addEventListener('output', (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (typeof msg.data === 'string') {
+          setPtyBanner(false);
+          term.write(msg.data);
+        }
+      } catch {
+        // Ignore
+      }
+    });
+
+    es.addEventListener('exit', (ev) => {
+      let code = 0;
+      try {
+        code = JSON.parse(ev.data).exitCode ?? 0;
+      } catch {
+        // Ignore
+      }
+      setPtyBadgeState('danger', `EXITED (${code})`);
+      setPtyBanner(false);
+      term.write(
+        `\r\n\x1b[33m[PTY session closed — exit code ${code}. Press Enter or click "Reconnect PTY" to open a new shell.]\x1b[0m\r\n`
+      );
+      closePtySocket();
+    });
+
+    es.onerror = () => {
+      if (state.vpsPtySse === es && es.readyState === EventSource.CLOSED) {
+        setPtyBadgeState('danger', 'DISCONNECTED');
+      }
+    };
+  }
+
   function connectPtyWebSocket(resetScreen = false) {
     const term = ensureXtermMounted();
     if (!term) return;
@@ -1210,11 +1404,41 @@
     const wsUrl = `${wsProto}//${window.location.host}/api/vps/pty?cols=${cols}&rows=${rows}${tokenParam}`;
 
     setPtyBadgeState('warn', 'CONNECTING');
-    const ws = new WebSocket(wsUrl);
+    setPtyBanner(true, 'Allocating Linux kernel PTY (/dev/pts)...');
+
+    let wsOpened = false;
+    let switchedToSse = false;
+    const triggerSseFallback = () => {
+      if (wsOpened || switchedToSse) return;
+      switchedToSse = true;
+      if (state.vpsPtyFallbackTimer) {
+        clearTimeout(state.vpsPtyFallbackTimer);
+        state.vpsPtyFallbackTimer = null;
+      }
+      connectPtySseFallback(cols, rows);
+    };
+
+    let ws;
+    try {
+      ws = new WebSocket(wsUrl);
+    } catch {
+      triggerSseFallback();
+      return;
+    }
     state.vpsPtyWs = ws;
 
+    state.vpsPtyFallbackTimer = setTimeout(() => {
+      if (!wsOpened) triggerSseFallback();
+    }, 1500);
+
     ws.onopen = () => {
-      setPtyBadgeState('ok', 'PTY LIVE');
+      wsOpened = true;
+      if (state.vpsPtyFallbackTimer) {
+        clearTimeout(state.vpsPtyFallbackTimer);
+        state.vpsPtyFallbackTimer = null;
+      }
+      setPtyBadgeState('ok', 'PTY LIVE · WS');
+      setPtyBanner(false);
       fitVpsPty();
       term.focus();
       state.vpsPtyPingTimer = setInterval(() => {
@@ -1230,15 +1454,18 @@
         return;
       }
       if (msg.type === 'output' && typeof msg.data === 'string') {
+        setPtyBanner(false);
         term.write(msg.data);
       } else if (msg.type === 'ready') {
-        setPtyBadgeState('ok', 'PTY LIVE');
+        setPtyBadgeState('ok', 'PTY LIVE · WS');
+        setPtyBanner(false);
         if ($('vpsTtyBadge')) {
           $('vpsTtyBadge').textContent = msg.tty || '/dev/pts';
           $('vpsTtyBadge').title = `Shell PID ${msg.pid || '-'} (${msg.backend || 'pty'})`;
         }
       } else if (msg.type === 'exit') {
         setPtyBadgeState('danger', `EXITED (${msg.exitCode ?? 0})`);
+        setPtyBanner(false);
         term.write(
           `\r\n\x1b[33m[PTY session closed — exit code ${msg.exitCode ?? 0}. Press Enter or click "Reconnect PTY" to open a new shell.]\x1b[0m\r\n`
         );
@@ -1246,20 +1473,28 @@
     };
 
     ws.onclose = () => {
+      if (!wsOpened) {
+        triggerSseFallback();
+        return;
+      }
       if (state.vpsPtyPingTimer) {
         clearInterval(state.vpsPtyPingTimer);
         state.vpsPtyPingTimer = null;
       }
       if (state.vpsPtyWs === ws) {
         state.vpsPtyWs = null;
-        if ($('vpsShellStateBadge')?.textContent === 'PTY LIVE' || $('vpsShellStateBadge')?.textContent === 'CONNECTING') {
+        if (String($('vpsShellStateBadge')?.textContent || '').startsWith('PTY LIVE')) {
           setPtyBadgeState('danger', 'DISCONNECTED');
         }
       }
     };
 
     ws.onerror = () => {
-      setPtyBadgeState('danger', 'WS ERROR');
+      if (!wsOpened) {
+        triggerSseFallback();
+      } else {
+        setPtyBadgeState('danger', 'WS ERROR');
+      }
     };
   }
 
@@ -1402,7 +1637,7 @@
 
   async function loadVpsView(includePublicIp = false) {
     ensureXtermMounted();
-    if (!state.vpsPtyWs || state.vpsPtyWs.readyState > WebSocket.OPEN) {
+    if (!isPtyConnected() && !state.vpsPtyWs && !state.vpsPtySse) {
       connectPtyWebSocket(false);
     } else {
       requestAnimationFrame(() => {
@@ -1420,6 +1655,7 @@
   // ─── Navigation Switching (Sidebar + Mobile/Tablet Quick Tabs) ───
   async function switchView(viewName) {
     state.activeView = viewName;
+    pulseTopActivity();
     document.querySelectorAll('[data-view]').forEach((btn) => {
       const isActive = btn.dataset.view === viewName;
       btn.classList.toggle('active', isActive);
@@ -1965,12 +2201,12 @@
         e.preventDefault();
         const val = vpsCmdInput.value;
         vpsCmdInput.value = '';
-        if (!state.vpsPtyWs || state.vpsPtyWs.readyState !== WebSocket.OPEN) {
+        if (!isPtyConnected()) {
           connectPtyWebSocket(false);
           setTimeout(() => {
             sendPtyInput(`${val}\r`);
             state.vpsTerm?.focus();
-          }, 260);
+          }, 320);
           return;
         }
         sendPtyInput(`${val}\r`);
@@ -2077,6 +2313,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    bindSpotlightCards();
     bindEvents();
     checkSessionAndBoot();
   });

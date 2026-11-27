@@ -595,6 +595,82 @@ async function main() {
     });
   });
 
+  // ─── 15. Reverse-Proxy Safe SSE + HTTP Duplex PTY Fallback (/api/vps/pty/stream) ───
+  await step('Reverse-Proxy SSE + HTTP Duplex PTY Fallback (/api/vps/pty/stream, /input, /resize)', async () => {
+    const unauthStream = await req('/api/vps/pty/stream?cols=80&rows=24', { cookie: '' });
+    assert.equal(unauthStream.status, 401);
+
+    await new Promise((resolve, reject) => {
+      const parsed = new URL(`${baseUrl}/api/vps/pty/stream?cols=88&rows=24`);
+      let sid = '';
+      let outBuf = '';
+      let sentCmd = false;
+      const timer = setTimeout(() => {
+        clientReq.destroy();
+        reject(new Error(`Timeout SSE PTY fallback:\n${outBuf}`));
+      }, 6000);
+
+      const clientReq = http.request(
+        {
+          hostname: parsed.hostname,
+          port: parsed.port,
+          path: parsed.pathname + parsed.search,
+          method: 'GET',
+          headers: { Cookie: sessionCookie },
+        },
+        (res) => {
+          assert.equal(res.statusCode, 200);
+          let buf = '';
+          res.setEncoding('utf8');
+          res.on('data', async (chunk) => {
+            buf += chunk;
+            const frames = buf.split('\n\n');
+            buf = frames.pop() || '';
+            for (const f of frames) {
+              let ev = '';
+              let rawData = '';
+              for (const line of f.split('\n')) {
+                if (line.startsWith('event:')) ev = line.slice(6).trim();
+                if (line.startsWith('data:')) rawData += line.slice(5).trim();
+              }
+              if (!rawData) continue;
+              const msg = JSON.parse(rawData);
+              if ((ev === 'session' || ev === 'ready') && msg.sessionId) {
+                sid = msg.sessionId;
+              }
+              if (ev === 'ready' && !sentCmd && sid) {
+                sentCmd = true;
+                await req('/api/vps/pty/resize', {
+                  method: 'POST',
+                  body: { sessionId: sid, cols: 124, rows: 38 },
+                });
+                await new Promise((r) => setTimeout(r, 60));
+                await req('/api/vps/pty/input', {
+                  method: 'POST',
+                  body: { sessionId: sid, data: 'stty size && printf "SSE_PTY_%s\\n" "READY_OK"\r' },
+                });
+              }
+              if (ev === 'output' && msg.data) {
+                outBuf += msg.data;
+                if (outBuf.includes('SSE_PTY_READY_OK')) {
+                  clearTimeout(timer);
+                  assert.ok(outBuf.includes('38 124'), `stty size wajib 38 124:\n${outBuf}`);
+                  clientReq.destroy();
+                  resolve();
+                }
+              }
+            }
+          });
+        }
+      );
+      clientReq.on('error', (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+      clientReq.end();
+    });
+  });
+
   await stopControlPanelServer();
   closeDatabase();
   fs.rmSync(tmpRoot, { recursive: true, force: true });
