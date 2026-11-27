@@ -1941,7 +1941,11 @@ async function run() {
 
   // 38. Uji Fitur .ecode (.encode Script Obfuscator) & .dcode (.decode Script Deobfuscator + Beautifier + Sandi)
   const { encodeText, decodeText } = require('../lib/codec');
-  const { obfuscateJavaScript, deobfuscateAndBeautifyJavaScript } = require('../lib/script-codec');
+  const {
+    obfuscateJavaScript,
+    deobfuscateAndBeautifyJavaScript,
+    auditObfuscationResidue,
+  } = require('../lib/script-codec');
 
   // 38a. Uji Obfuscate -> Deobfuscate & Sempurnakan (Beautify) pada file script .js via WhatsApp Document!
   const rawBotScript = [
@@ -2023,6 +2027,17 @@ async function run() {
   const packedJs = obfuscateJavaScript(rawBotScript, { mode: 'pack' });
   const unpackedJs = deobfuscateAndBeautifyJavaScript(packedJs.code);
   assert(unpackedJs.code.includes('Selamat ') && unpackedJs.syntaxValid);
+
+  // 38b-2. Audit sisa obfuscation: hasil decode wajib BENAR-BENAR bersih (0 sisa)
+  assert(unpackedJs.fullyDecoded === true, 'Hasil .dcode container wajib lolos audit sisa obfuscation');
+  assert(unpackedJs.residue.hexIdentifiers === 0, 'Tidak boleh ada identifier _0x tersisa');
+  assert(unpackedJs.residue.stringArrays === 0, 'Tidak boleh ada string-array obfuscator tersisa');
+  const dirtyAudit = auditObfuscationResidue(
+    "var _0x4f2a=['log'];(function(_0x1a,_0x2b){_0x1a['push'](_0x1a['shift']());}(_0x4f2a,0x1f));console[_0x4f2a[0x0]]();"
+  );
+  assert(dirtyAudit.clean === false && dirtyAudit.score > 0, 'Audit wajib mendeteksi kode yang masih ter-obfuscate');
+  const cleanAudit = auditObfuscationResidue('const answer = 42;\nconsole.log(answer);');
+  assert(cleanAudit.clean === true && cleanAudit.score === 0, 'Audit wajib menyatakan bersih untuk kode normal');
 
   // 38c. Uji juga sandi teks biasa (Base64/Hex/Biner/Morse) & proteksi Antilink
   const b64Enc = encodeText('b64', 'Rahasia Berlian CipiSMP 26.3');

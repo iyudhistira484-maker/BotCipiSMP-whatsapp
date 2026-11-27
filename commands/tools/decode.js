@@ -28,6 +28,23 @@ function extractQuotedCipher(quotedMessage) {
   return raw;
 }
 
+function buildAuditVerdict(decoded) {
+  const res = decoded.residue || null;
+  if (!res) return 'tidak diaudit';
+  if (res.clean && decoded.syntaxValid) return 'Bersih 100% (0 sisa)';
+
+  const parts = [];
+  if (res.hexIdentifiers) parts.push(`${res.hexIdentifiers} _0x`);
+  if (res.decoderCalls) parts.push(`${res.decoderCalls} decoder`);
+  if (res.stringArrays) parts.push(`${res.stringArrays} string-array`);
+  if (res.rotators) parts.push(`${res.rotators} rotator`);
+  if (res.arrayIndexChains) parts.push(`${res.arrayIndexChains} index-chain`);
+  if (res.base64Blobs) parts.push(`${res.base64Blobs} blob base64`);
+  if (res.dynamicEval) parts.push(`${res.dynamicEval} eval/atob`);
+  const detail = parts.length > 0 ? parts.join(', ') : 'obfuscation belum terurai';
+  return `sisa ${res.score} (${detail})`;
+}
+
 module.exports = {
   name: 'decode',
   alias: ['dcode', 'dec', 'deobf', 'bukasandi'],
@@ -119,6 +136,7 @@ module.exports = {
           decoded.identifiersRenamed ? `• Variabel: *${decoded.identifiersRenamed} nama _0x dirapikan*` : '',
           `• Ukuran  : *${(outBuf.length / 1024).toFixed(1)} KB*`,
           decoded.isScript ? `• Syntax  : *${decoded.syntaxValid ? 'Valid & Rapi' : 'Dicek Manual'}*` : '',
+          decoded.isScript ? `• Audit   : *${buildAuditVerdict(decoded)}*` : '',
         ]
           .filter(Boolean)
           .join('\n');
@@ -143,8 +161,11 @@ module.exports = {
       const out = [
         `🔓 *${boldSans(`HASIL DECODE (${decoded.format})`)}*`,
         DIVIDER,
+        decoded.isScript ? keep(`Audit sisa obfuscation: *${buildAuditVerdict(decoded)}*`) : '',
         keep(formattedBody),
-      ].join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
 
       await ctx.reply(out);
     } catch (err) {
