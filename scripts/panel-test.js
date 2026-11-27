@@ -172,6 +172,30 @@ async function main() {
     assert.ok(css.includes('object-fit: cover'), 'Logo harus mengisi tile badge presisi');
   });
 
+  await step('Design discipline: flat instrument-panel system (no glass, no decorative gradient, single accent)', () => {
+    const pubDir = path.join(__dirname, '..', 'panel', 'public');
+    const css = fs.readFileSync(path.join(pubDir, 'styles.css'), 'utf8');
+    const html = fs.readFileSync(path.join(pubDir, 'index.html'), 'utf8');
+
+    assert.ok(!css.includes('backdrop-filter'), 'Tidak boleh ada glassmorphism (backdrop-filter) di styles.css');
+    assert.ok(!css.includes('radial-gradient'), 'Tidak boleh ada radial glow/horizon dekoratif');
+    assert.ok(!css.includes('linear-gradient'), 'Tidak boleh ada gradient dekoratif (shimmer/sheen)');
+    const infinite = (css.match(/animation:[^;]*infinite/g) || []).length;
+    assert.strictEqual(infinite, 1, 'Hanya spinner (loading) yang boleh animasi infinite');
+
+    assert.ok(css.includes('--accent: #8b5cf6'), 'Dark mode harus memakai satu aksen violet (#8b5cf6)');
+    assert.ok(css.includes('--accent: #7c3aed'), 'Light mode harus memakai aksen violet yang sama familinya');
+    assert.ok(!css.includes('#3b82f6') || css.includes('--accent: #8b5cf6'), 'Aksen lama biru harus sudah diganti');
+
+    const radii = [...css.matchAll(/border-radius:\s*(\d+)px/g)].map((m) => Number(m[1]));
+    const tooRound = radii.filter((r) => r > 12 && r !== 999);
+    assert.strictEqual(tooRound.length, 0, `Radius kartu > 12px tidak diizinkan (ditemukan: ${tooRound.join(', ')})`);
+
+    assert.ok(css.includes('--card-shadow-hover: 0 1px 2px'), 'Hover kartu tidak boleh memunculkan bayangan melayang');
+    assert.ok(!css.includes('translateY(-1.5px)'), 'Kartu tidak boleh naik saat hover (anti micro-physics)');
+    assert.ok(html.includes('class="cp-logo-img"'), 'Brand mark tetap memakai aset logo resmi');
+  });
+
   await step('Static assets: self-hosted Inter & JetBrains Mono .woff2 fonts present', () => {
     const fontDir = path.join(__dirname, '..', 'panel', 'public', 'fonts');
     const expected = [
