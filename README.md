@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="panel/public/assets/logo-cp.svg" alt="Cipi Panel — monogram CP" width="104" height="104" />
+  <img src="panel/public/assets/logo-cp-512.png" alt="Cipi Panel — monogram CP" width="120" height="120" />
 </p>
 
 # 🌸 BotCipiSMP WhatsApp — Kawaii Anime 24/7 (Minecraft & Discord Ready)
