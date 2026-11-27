@@ -1,0 +1,32 @@
+{
+  "name": "Cipi Panel — CP",
+  "short_name": "Cipi Panel",
+  "description": "Kontrol bot WhatsApp, node & VPS CipiSMP.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0f19",
+  "theme_color": "#2E1168",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/assets/logo-cp-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo-cp-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo-cp-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

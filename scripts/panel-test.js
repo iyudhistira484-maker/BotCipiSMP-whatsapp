@@ -138,6 +138,38 @@ async function main() {
   console.log('══════════════════════════════════════════════════════════');
 
   // 1. Static UI, Fonts, CP Logo, Dark/Light Mode & Zero-Emoji Policy
+  await step('Brand identity: single-source CP logo (SVG + PNG icons + webmanifest) dipakai sidebar, login & favicon', () => {
+    const pubDir = path.join(__dirname, '..', 'panel', 'public');
+    const assetsDir = path.join(pubDir, 'assets');
+    const svgPath = path.join(assetsDir, 'logo-cp.svg');
+    const svg = fs.readFileSync(svgPath, 'utf8');
+    assert.ok(svg.startsWith('<svg'), 'logo-cp.svg harus berupa SVG valid');
+    assert.ok(svg.includes('viewBox="0 0 96 96"'), 'logo-cp.svg harus memakai kanvas 96x96');
+    assert.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(svg), 'logo-cp.svg tidak boleh memuat emoji');
+
+    for (const icon of ['favicon-32.png', 'logo-cp-180.png', 'logo-cp-192.png', 'logo-cp-512.png']) {
+      const stat = fs.statSync(path.join(assetsDir, icon));
+      assert.ok(stat.size > 500, `Ikon ${icon} tampak kosong/korup`);
+    }
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(pubDir, 'manifest.webmanifest'), 'utf8'));
+    assert.ok(manifest.name.includes('Cipi Panel'), 'manifest.webmanifest harus memakai brand Cipi Panel');
+    assert.ok(manifest.icons.length >= 2, 'manifest.webmanifest harus mendaftarkan ikon PWA');
+
+    const html = fs.readFileSync(path.join(pubDir, 'index.html'), 'utf8');
+    const logoRefs = html.split('/assets/logo-cp.svg').length - 1;
+    assert.strictEqual(logoRefs, 3, 'Logo CP harus dipakai di favicon + sidebar + login (3 referensi)');
+    assert.ok(html.includes('rel="icon" type="image/svg+xml"'), 'favicon SVG harus ditautkan di <head>');
+    assert.ok(html.includes('rel="apple-touch-icon"'), 'apple-touch-icon harus ditautkan untuk iOS');
+    assert.ok(html.includes('rel="manifest"'), 'manifest PWA harus ditautkan di <head>');
+    assert.ok(html.includes('class="cp-logo-img"'), 'Sidebar & login harus merender <img class="cp-logo-img">');
+    assert.ok(!html.includes('aria-label="CP Logo"><path d="M10.2 6.5H6.8'), 'Inline SVG monogram lama harus sudah diganti logo aset');
+
+    const css = fs.readFileSync(path.join(pubDir, 'styles.css'), 'utf8');
+    assert.ok(css.includes('.cp-mark .cp-logo-img'), 'styles.css harus menata .cp-logo-img di dalam .cp-mark');
+    assert.ok(css.includes('object-fit: contain'), 'Logo harus di-scale presisi tanpa terpotong');
+  });
+
   await step('Static assets: self-hosted Inter & JetBrains Mono .woff2 fonts present', () => {
     const fontDir = path.join(__dirname, '..', 'panel', 'public', 'fonts');
     const expected = [

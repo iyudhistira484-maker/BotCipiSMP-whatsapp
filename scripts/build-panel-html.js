@@ -40,11 +40,7 @@ ${css}
       <div class="auth-header">
         <div class="cp-brand">
           <span class="cp-mark" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M10.2 6.5H6.8C5.53 6.5 4.5 7.53 4.5 8.8V15.2C4.5 16.47 5.53 17.5 6.8 17.5H10.2" stroke="var(--logo-fg)" stroke-width="2.1" stroke-linecap="square"/>
-              <path d="M13.2 17.5V6.5H16.9C18.45 6.5 19.6 7.58 19.6 9.15C19.6 10.72 18.45 11.8 16.9 11.8H13.2" stroke="var(--logo-fg)" stroke-width="2.1" stroke-linecap="square"/>
-              <rect x="17.3" y="15.1" width="2.5" height="2.5" fill="var(--logo-accent)"/>
-            </svg>
+            <img class="cp-logo-img" src="/assets/logo-cp.svg?v=20261201a" alt="" width="34" height="34" draggable="false" decoding="async" />
           </span>
           <div class="cp-brand-text">
             <span class="cp-brand-title">Cipi Panel</span>
@@ -81,11 +77,7 @@ ${css}
       <div class="sidebar-top">
         <div class="cp-brand">
           <span class="cp-mark" title="CP — Cipi Panel">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-label="CP Logo">
-              <path d="M10.2 6.5H6.8C5.53 6.5 4.5 7.53 4.5 8.8V15.2C4.5 16.47 5.53 17.5 6.8 17.5H10.2" stroke="var(--logo-fg)" stroke-width="2.1" stroke-linecap="square"/>
-              <path d="M13.2 17.5V6.5H16.9C18.45 6.5 19.6 7.58 19.6 9.15C19.6 10.72 18.45 11.8 16.9 11.8H13.2" stroke="var(--logo-fg)" stroke-width="2.1" stroke-linecap="square"/>
-              <rect x="17.3" y="15.1" width="2.5" height="2.5" fill="var(--logo-accent)"/>
-            </svg>
+            <img class="cp-logo-img" src="/assets/logo-cp.svg?v=20261201a" alt="CP Logo" width="34" height="34" draggable="false" decoding="async" />
           </span>
           <div class="cp-brand-text">
             <span class="cp-brand-title">Cipi Panel</span>
