@@ -416,29 +416,6 @@
     }, 680);
   }
 
-  function bindSpotlightCards() {
-    let rafPending = false;
-    let lastEv = null;
-    document.addEventListener(
-      'pointermove',
-      (ev) => {
-        lastEv = ev;
-        if (rafPending) return;
-        rafPending = true;
-        requestAnimationFrame(() => {
-          rafPending = false;
-          if (!lastEv) return;
-          const card = lastEv.target?.closest?.('.metric-card, .chart-box');
-          if (!card) return;
-          const r = card.getBoundingClientRect();
-          card.style.setProperty('--mx', `${Math.round(lastEv.clientX - r.left)}px`);
-          card.style.setProperty('--my', `${Math.round(lastEv.clientY - r.top)}px`);
-        });
-      },
-      { passive: true }
-    );
-  }
-
   function closePtySocket() {
     if (state.vpsPtyFallbackTimer) {
       clearTimeout(state.vpsPtyFallbackTimer);
@@ -1379,11 +1356,11 @@
       lineHeight: 1.24,
       convertEol: false,
       theme: {
-        background: '#07080b',
+        background: '#08080a',
         foreground: '#e5e7eb',
-        cursor: '#38bdf8',
-        cursorAccent: '#07080b',
-        selectionBackground: 'rgba(59, 130, 246, 0.34)',
+        cursor: '#a78bfa',
+        cursorAccent: '#08080a',
+        selectionBackground: 'rgba(139, 92, 246, 0.3)',
         black: '#18181f',
         red: '#f87171',
         green: '#34d399',
@@ -2474,7 +2451,6 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    bindSpotlightCards();
     bindEvents();
     checkSessionAndBoot();
   });
