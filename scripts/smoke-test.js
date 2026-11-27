@@ -1411,6 +1411,7 @@ async function run() {
     'qc', 'brat', 'afk',
     'ach', 'skin', 'poll',
     'encode', 'decode',
+    'vps', 'sh',
   ];
   for (const name of requiredCommands) {
     assert(commands.has(name), `Command wajib .${name} harus terdaftar`);
@@ -2115,21 +2116,103 @@ async function run() {
   assert(decodedHoisted.result.includes("require('http2')"), 'String array hoisted wajib terdekripsi ke literal asli');
   assert(decodedHoisted.identifiersRenamed >= 1, 'Variabel lokal _0x wajib dirapikan');
 
+  // 40. Uji Kontrol VPS & Terminal (.vps, .sh, $ shortcut) — Ketat Khusus Owner!
+  // Admin grup & member biasa WAJIB ditolak!
+  for (const [labelRole, senderTest] of [
+    ['Admin Grup', nonOwnerAdminJid],
+    ['Member Biasa', regularMemberJid],
+  ]) {
+    tagTestPayloads.length = 0;
+    await handleIncomingMessage(tagTestSock, {
+      key: { remoteJid: tagTestGroupJid, participant: senderTest, fromMe: false, id: `VPS_DENY_${labelRole}` },
+      pushName: labelRole,
+      message: { conversation: '.sh whoami' },
+    });
+    assert(
+      tagTestPayloads.some((p) => String(p?.text || '').includes('ᴋʜᴜsᴜs ᴏᴡɴᴇʀ')),
+      `${labelRole} wajib ditolak saat mencoba .sh!`
+    );
+
+    tagTestPayloads.length = 0;
+    await handleIncomingMessage(tagTestSock, {
+      key: { remoteJid: tagTestGroupJid, participant: senderTest, fromMe: false, id: `DOLLAR_DENY_${labelRole}` },
+      pushName: labelRole,
+      message: { conversation: '$ echo HACK_ATTEMPT' },
+    });
+    assert(
+      !tagTestPayloads.some((p) => String(p?.text || '').includes('HACK_ATTEMPT')),
+      `Shortcut $ wajib diabaikan sepenuhnya untuk ${labelRole}!`
+    );
+  }
+
+  // Owner menjalankan .vps status, .sh cd /tmp -> $ pwd -> .sh reset -> blokir rm -rf /
+  const ownerRealJid = `${config.ownerNumbers[0]}@s.whatsapp.net`;
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: ownerRealJid, fromMe: false, id: 'VPS_STATUS_OWNER_1' },
+    pushName: 'OwnerCipi',
+    message: { conversation: '.vps' },
+  });
+  assert(
+    tagTestPayloads.some((p) => String(p?.text || '').includes('ʀᴀᴍ ᴠᴘs')),
+    'Owner wajib menerima laporan status host .vps!'
+  );
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: ownerRealJid, fromMe: false, id: 'SH_CD_TMP_1' },
+    pushName: 'OwnerCipi',
+    message: { conversation: '.sh cd /tmp' },
+  });
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: ownerRealJid, fromMe: false, id: 'SH_DOLLAR_PWD_1' },
+    pushName: 'OwnerCipi',
+    message: { conversation: '$ pwd && echo CIPI_VPS_OK' },
+  });
+  assert(
+    tagTestPayloads.some(
+      (p) => String(p?.text || '').includes('/tmp') && String(p?.text || '').includes('CIPI_VPS_OK')
+    ),
+    'Direktori kerja .sh wajib persisten ke /tmp dan shortcut $ wajib aktif untuk Owner!'
+  );
+
+  tagTestPayloads.length = 0;
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: ownerRealJid, fromMe: false, id: 'SH_BLOCK_RM_1' },
+    pushName: 'OwnerCipi',
+    message: { conversation: '.sh rm -rf /' },
+  });
+  assert(
+    tagTestPayloads.some((p) => {
+      const txt = String(p?.text || '');
+      return txt.includes('diblokir') || txt.includes('ᴅɪʙʟᴏᴋɪʀ');
+    }),
+    'Proteksi keselamatan wajib memblokir rm -rf /!'
+  );
+
+  await handleIncomingMessage(tagTestSock, {
+    key: { remoteJid: ownerRealJid, fromMe: false, id: 'SH_RESET_1' },
+    pushName: 'OwnerCipi',
+    message: { conversation: '.sh reset' },
+  });
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/39] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/39] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
-  console.log('│ ✅ [33/39] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
-  console.log('│ ✅ [34/39] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
-  console.log('│ ✅ [35/39] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
-  console.log('│ ✅ [36/39] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
-  console.log('│ ✅ [37/39] Paket Khas Minecraft SMP (.ach/.sach, .skin 3D/Pixel + UUID, & .poll WA Asli) lulus');
-  console.log('│ ✅ [38/39] Sandi Pintar .ecode & .dcode (Auto-Detect Base64/Hex/Biner/Morse + Anti-Link Smuggling) lulus');
-  console.log('│ ✅ [39/39] JS Deobfuscator v4 (.dcode Hoisted _0x String Array, Crockford IIFE, Multi-Alias & _0x Humanizer) lulus');
+  console.log('│ ✅ [31/40] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/40] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/40] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [34/40] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
+  console.log('│ ✅ [35/40] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
+  console.log('│ ✅ [36/40] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
+  console.log('│ ✅ [37/40] Paket Khas Minecraft SMP (.ach/.sach, .skin 3D/Pixel + UUID, & .poll WA Asli) lulus');
+  console.log('│ ✅ [38/40] Sandi Pintar .ecode & .dcode (Auto-Detect Base64/Hex/Biner/Morse + Anti-Link Smuggling) lulus');
+  console.log('│ ✅ [39/40] JS Deobfuscator v4 (.dcode Hoisted _0x String Array, Crockford IIFE, Multi-Alias & _0x Humanizer) lulus');
+  console.log('│ ✅ [40/40] Kontrol VPS & Terminal (.vps, .sh, $ Shortcut Khusus Owner + CWD Persisten & Anti-rm-rf) lulus');
   console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Fitur Baru LULUS sempurna! 🌸♡ ❖');
 }
 

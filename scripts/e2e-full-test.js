@@ -441,9 +441,11 @@ async function runE2E() {
     config.enableOwnerEval = false;
 
     await dispatchCmd('.logs 5');
+    await dispatchCmd('.vps');
+    await dispatchCmd('.sh echo E2E_VPS_SHELL_OK');
     await dispatchCmd('.restartbot reload');
     await dispatchCmd('.restartbot');
-    console.log('│ ✅ Fase 7 (13/13 command Ban, Self/Public, Maintenance, VIP, Eval, Logs & Restart) LULUS');
+    console.log('│ ✅ Fase 7 (15/15 command Ban, Self/Public, Maintenance, VIP, Eval, Logs, VPS/Terminal & Restart) LULUS');
 
     // ===================================================================
     // VERIFIKASI 100% CAKUPAN SELURUH 79 COMMAND UTAMA

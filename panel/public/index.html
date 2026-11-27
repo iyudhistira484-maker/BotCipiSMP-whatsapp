@@ -15,7 +15,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261124c" />
+  <link rel="stylesheet" href="/styles.css?v=20261127v" />
 </head>
 <body>
   <!-- ═══ Authentication Gate ═══ -->
@@ -93,12 +93,19 @@
           </span>
         </button>
 
+        <button type="button" class="nav-btn" data-view="vps">
+          <span class="nav-btn-left">
+            <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><polyline points="7 8 10 10.5 7 13"/><line x1="12" y1="13" x2="16" y2="13"/></svg>
+            <span>VPS Terminal</span>
+          </span>
+        </button>
+
         <button type="button" class="nav-btn" data-view="runtime">
           <span class="nav-btn-left">
             <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
             <span>Runtime &amp; Commands</span>
           </span>
-          <span id="navCmdCount" class="nav-count">87</span>
+          <span id="navCmdCount" class="nav-count">89</span>
         </button>
 
         <button type="button" class="nav-btn" data-view="minecraft">
@@ -220,10 +227,14 @@
           <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
           <span>Console</span>
         </button>
+        <button type="button" class="view-tab-pill" data-view="vps">
+          <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="7 8 10 10.5 7 13"/><line x1="12" y1="13" x2="16" y2="13"/></svg>
+          <span>VPS</span>
+        </button>
         <button type="button" class="view-tab-pill" data-view="runtime">
           <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
           <span>Runtime</span>
-          <span id="tabCmdCount" class="nav-count">87</span>
+          <span id="tabCmdCount" class="nav-count">89</span>
         </button>
         <button type="button" class="view-tab-pill" data-view="minecraft">
           <svg width="14" height="14" class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -694,6 +705,114 @@
           </div>
         </section>
 
+        <!-- ═══ VIEW 1B: VPS Host Control & Linux Shell Terminal ═══ -->
+        <section id="view-vps" class="view-section hidden">
+          <div class="panel-card terminal-card vps-terminal-card">
+            <div class="panel-head">
+              <div class="panel-title">
+                <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="7 8 10 10.5 7 13"/><line x1="12" y1="13" x2="16" y2="13"/></svg>
+                <span>pts/0 · Host Linux Shell Terminal</span>
+                <span id="vpsCwdBadge" class="badge mono">~</span>
+                <span id="vpsShellStateBadge" class="badge ok">IDLE</span>
+              </div>
+              <div class="console-head-tools">
+                <div class="badge-group">
+                  <button type="button" id="btnVpsAbort" class="btn btn-danger btn-sm" disabled title="Abort Running Command (SIGTERM)">Abort</button>
+                  <button type="button" id="btnVpsResetCwd" class="btn btn-sm" title="Reset Working Directory to Bot Root">Reset CWD</button>
+                  <button type="button" id="btnVpsClear" class="btn btn-sm">Clear</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="vpsTerminalViewport" class="terminal-viewport vps-viewport" aria-live="polite"></div>
+
+            <div class="terminal-quick-bar">
+              <span class="terminal-quick-label">Quick Shell:</span>
+              <button type="button" class="terminal-chip" data-vps-chip="uname -a">uname -a</button>
+              <button type="button" class="terminal-chip" data-vps-chip="uptime">uptime</button>
+              <button type="button" class="terminal-chip" data-vps-chip="free -h">free -h</button>
+              <button type="button" class="terminal-chip" data-vps-chip="df -h">df -h</button>
+              <button type="button" class="terminal-chip" data-vps-chip="ps aux --sort=-%cpu | head -n 15">top cpu</button>
+              <button type="button" class="terminal-chip" data-vps-chip="ss -tulpn">ports</button>
+              <button type="button" class="terminal-chip" data-vps-chip="pm2 status">pm2 status</button>
+              <button type="button" class="terminal-chip" data-vps-chip="git status -sb">git status</button>
+            </div>
+
+            <form id="vpsExecForm" class="terminal-input-bar">
+              <span class="terminal-prompt">
+                <span id="vpsPromptFull" class="terminal-prompt-full">operator@vps:~$</span>
+                <span id="vpsPromptShort" class="terminal-prompt-short">~$</span>
+              </span>
+              <input
+                id="vpsCmdInput"
+                type="text"
+                class="terminal-cmd-input"
+                placeholder="Execute Linux shell command (ls -la, cd /var/log, df -h, pm2 logs --lines 20)..."
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="submit" id="btnVpsExecSubmit" class="btn btn-primary btn-sm">Run</button>
+            </form>
+          </div>
+
+          <div class="two-col-grid">
+            <div class="panel-card">
+              <div class="panel-head">
+                <div class="panel-title">Host Hardware, OS &amp; Network Interfaces</div>
+                <div class="panel-head-actions">
+                  <button type="button" id="btnVpsCheckPublicIp" class="btn btn-sm">Check Public IP</button>
+                  <button type="button" id="btnVpsRefresh" class="btn btn-primary btn-sm">Refresh Host</button>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div id="vpsHostInfoKv" class="kv-list"></div>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <div class="panel-head">
+                <div class="panel-title">Mounted Filesystems &amp; Swap</div>
+                <span id="vpsSwapSub" class="panel-sub mono">Swap: -</span>
+              </div>
+              <div class="panel-body">
+                <div id="vpsDisksList" class="vps-disks-stack"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-head">
+              <div class="panel-title">Host Process Manager (Top CPU / Memory)</div>
+              <div class="toolbar-controls">
+                <input
+                  id="vpsProcSearchInput"
+                  type="text"
+                  class="input mono select-compact"
+                  placeholder="Filter PID / process..."
+                />
+                <button type="button" id="btnVpsRefreshProcs" class="btn btn-sm">Refresh List</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>PID</th>
+                    <th>User</th>
+                    <th>CPU %</th>
+                    <th>MEM %</th>
+                    <th>RSS</th>
+                    <th>Elapsed</th>
+                    <th>Command</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="vpsProcessesBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <!-- ═══ VIEW 7: Audit & Access ═══ -->
         <section id="view-audit" class="view-section hidden">
           <div class="panel-card">
@@ -712,6 +831,7 @@
                 <select id="auditCategorySelect" class="select select-compact toolbar-select">
                   <option value="">All Categories</option>
                   <option value="panel_auth">panel_auth</option>
+                  <option value="vps_control">vps_control</option>
                   <option value="owner_admin">owner_admin</option>
                   <option value="server_control">server_control</option>
                   <option value="backup">backup</option>
@@ -795,7 +915,7 @@
 
   <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
-  <script src="/charts.js?v=20261124c"></script>
-  <script src="/app.js?v=20261124c"></script>
+  <script src="/charts.js?v=20261127v"></script>
+  <script src="/app.js?v=20261127v"></script>
 </body>
 </html>
