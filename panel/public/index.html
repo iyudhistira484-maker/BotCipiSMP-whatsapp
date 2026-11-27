@@ -15,8 +15,8 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/vendor/xterm.css?v=20261127s" />
-  <link rel="stylesheet" href="/styles.css?v=20261127s" />
+  <link rel="stylesheet" href="/vendor/xterm.css?v=20261127x" />
+  <link rel="stylesheet" href="/styles.css?v=20261127x" />
 </head>
 <body>
   <!-- ═══ Authentication Gate ═══ -->
@@ -169,6 +169,7 @@
     <div class="workspace">
       <!-- Persistent Instance Header -->
       <header class="instance-header">
+        <div id="topActivityBar" class="top-activity-bar" aria-hidden="true"></div>
         <div class="instance-meta">
           <button type="button" id="mobileMenuBtn" class="btn btn-icon mobile-menu-btn" aria-label="Toggle Menu">
             <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -343,8 +344,9 @@
         <section id="view-console" class="view-section">
           <div class="console-grid">
             <div class="panel-card terminal-card">
-              <div class="panel-head">
+              <div class="panel-head terminal-bezel-head">
                 <div class="panel-title">
+                  <span class="term-bezel-dots" aria-hidden="true"><span></span><span></span><span></span></span>
                   <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                   <span>tty0 · Live Instance Console</span>
                 </div>
@@ -715,8 +717,9 @@
         <!-- ═══ VIEW 1B: VPS Host Control & Full Interactive PTY Terminal ═══ -->
         <section id="view-vps" class="view-section hidden">
           <div id="vpsTerminalCard" class="panel-card terminal-card vps-terminal-card">
-            <div class="panel-head">
+            <div class="panel-head terminal-bezel-head">
               <div class="panel-title">
+                <span class="term-bezel-dots" aria-hidden="true"><span></span><span></span><span></span></span>
                 <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="7 8 10 10.5 7 13"/><line x1="12" y1="13" x2="16" y2="13"/></svg>
                 <span>Full Interactive PTY Terminal</span>
                 <span id="vpsTtyBadge" class="badge mono">/dev/pts</span>
@@ -732,7 +735,13 @@
               </div>
             </div>
 
-            <div id="vpsXtermMount" class="vps-xterm-mount" aria-label="Interactive SSH PTY Terminal"></div>
+            <div class="vps-xterm-stage">
+              <div id="vpsPtyStatusBanner" class="vps-pty-status-banner mono">
+                <span class="pty-spinner" aria-hidden="true"></span>
+                <span id="vpsPtyStatusText">Allocating Linux kernel PTY (/dev/pts)...</span>
+              </div>
+              <div id="vpsXtermMount" class="vps-xterm-mount" aria-label="Interactive SSH PTY Terminal"></div>
+            </div>
 
             <div class="terminal-quick-bar vps-keys-bar">
               <span class="terminal-quick-label">Keys:</span>
@@ -782,7 +791,9 @@
                 </div>
               </div>
               <div class="panel-body">
-                <div id="vpsHostInfoKv" class="kv-list"></div>
+                <div id="vpsHostInfoKv" class="kv-list">
+                  <div class="skeleton-stack"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+                </div>
               </div>
             </div>
 
@@ -792,7 +803,9 @@
                 <span id="vpsSwapSub" class="panel-sub mono">Swap: -</span>
               </div>
               <div class="panel-body">
-                <div id="vpsDisksList" class="vps-disks-stack"></div>
+                <div id="vpsDisksList" class="vps-disks-stack">
+                  <div class="skeleton-stack"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+                </div>
               </div>
             </div>
           </div>
@@ -955,9 +968,9 @@
 
   <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
-  <script src="/vendor/xterm.js?v=20261127s"></script>
-  <script src="/vendor/addon-fit.js?v=20261127s"></script>
-  <script src="/charts.js?v=20261127s"></script>
-  <script src="/app.js?v=20261127s"></script>
+  <script src="/vendor/xterm.js?v=20261127x"></script>
+  <script src="/vendor/addon-fit.js?v=20261127x"></script>
+  <script src="/charts.js?v=20261127x"></script>
+  <script src="/app.js?v=20261127x"></script>
 </body>
 </html>
