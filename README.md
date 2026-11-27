@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="panel/public/assets/logo-cp.svg" alt="Cipi Panel — monogram CP" width="104" height="104" />
+</p>
+
 # 🌸 BotCipiSMP WhatsApp — Kawaii Anime 24/7 (Minecraft & Discord Ready)
 
 Bot WhatsApp serbaguna bertema **Kawaii Anime Pink** berbasis **Node.js (>=20)** dan **@whiskeysockets/baileys**, dirancang berjalan stabil 24 jam di **Hosting Panel (Pterodactyl)** maupun **VPS (PM2)**, serta terintegrasi dengan **Minecraft (Java + Geyser Bedrock)** dan **Discord**.
