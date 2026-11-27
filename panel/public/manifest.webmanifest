@@ -6,8 +6,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0b0f19",
-  "theme_color": "#2E1168",
+  "background_color": "#07060F",
+  "theme_color": "#07060F",
   "lang": "id",
   "icons": [
     {
@@ -23,8 +23,8 @@
       "purpose": "any"
     },
     {
-      "src": "/assets/logo-cp-192.png",
-      "sizes": "192x192",
+      "src": "/assets/logo-cp-maskable-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }

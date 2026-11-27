@@ -107,8 +107,9 @@
   --shimmer-base: rgba(148, 163, 184, 0.07);
   --shimmer-peak: rgba(148, 163, 184, 0.16);
 
-  --logo-bg: #1a0f38;
-  --logo-border: rgba(168, 85, 247, 0.3);
+  --logo-bg: #07060f;
+  --logo-hover-border: rgba(167, 139, 250, 0.62);
+  --logo-border: rgba(167, 139, 250, 0.24);
   --logo-fg: #f8fafc;
   --logo-accent: #a855f7;
 }
@@ -169,8 +170,9 @@
   --shimmer-base: rgba(15, 23, 42, 0.05);
   --shimmer-peak: rgba(15, 23, 42, 0.11);
 
-  --logo-bg: #2e1168;
-  --logo-border: rgba(91, 33, 182, 0.34);
+  --logo-bg: #07060f;
+  --logo-hover-border: rgba(124, 58, 237, 0.55);
+  --logo-border: rgba(15, 23, 42, 0.16);
   --logo-fg: #ffffff;
   --logo-accent: #a855f7;
 }
@@ -423,48 +425,33 @@ svg.icon-sm {
 }
 
 .cp-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: var(--logo-bg);
   border: 1px solid var(--logo-border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 5px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.34);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
-  transition: transform 180ms var(--ease-out), border-color 180ms ease, box-shadow 220ms ease;
-}
-
-.cp-mark::after {
-  content: '';
-  position: absolute;
-  inset: -6px;
-  border-radius: 14px;
-  background: radial-gradient(circle at 50% 30%, rgba(168, 85, 247, 0.26), transparent 68%);
-  opacity: 0;
-  transition: opacity 240ms ease;
-  pointer-events: none;
+  transition: transform 200ms var(--ease-out), border-color 200ms ease, box-shadow 240ms ease;
 }
 
 .cp-brand:hover .cp-mark {
   transform: translateY(-1px);
-  border-color: var(--accent-border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 12px rgba(124, 58, 237, 0.34);
-}
-
-.cp-brand:hover .cp-mark::after {
-  opacity: 1;
+  border-color: var(--logo-hover-border);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.42);
 }
 
 .cp-mark .cp-logo-img {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: contain;
-  border-radius: inherit;
+  object-fit: cover;
+  object-position: center;
 }
 
 .cp-brand-text {
@@ -528,10 +515,10 @@ svg.icon-sm {
 }
 
 .auth-header .cp-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: 11px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 18px rgba(76, 29, 149, 0.42);
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  box-shadow: 0 8px 22px rgba(76, 29, 149, 0.4);
 }
 
 .auth-header .cp-brand-title {
@@ -2907,15 +2894,15 @@ svg.icon-sm {
 /* Compact Brand Mark (Mobile) */
 @media (max-width: 480px) {
   .cp-mark {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
   }
 
   .auth-header .cp-mark {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
   }
 }
 

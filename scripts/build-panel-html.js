@@ -40,7 +40,7 @@ ${css}
       <div class="auth-header">
         <div class="cp-brand">
           <span class="cp-mark" aria-hidden="true">
-            <img class="cp-logo-img" src="/assets/logo-cp.svg?v=20261201a" alt="" width="34" height="34" draggable="false" decoding="async" />
+            <img class="cp-logo-img" src="/assets/logo-cp-badge.png?v=20261201b" alt="" width="34" height="34" draggable="false" decoding="async" />
           </span>
           <div class="cp-brand-text">
             <span class="cp-brand-title">Cipi Panel</span>
@@ -77,7 +77,7 @@ ${css}
       <div class="sidebar-top">
         <div class="cp-brand">
           <span class="cp-mark" title="CP — Cipi Panel">
-            <img class="cp-logo-img" src="/assets/logo-cp.svg?v=20261201a" alt="CP Logo" width="34" height="34" draggable="false" decoding="async" />
+            <img class="cp-logo-img" src="/assets/logo-cp-badge.png?v=20261201b" alt="CP Logo" width="34" height="34" draggable="false" decoding="async" />
           </span>
           <div class="cp-brand-text">
             <span class="cp-brand-title">Cipi Panel</span>
