@@ -534,11 +534,110 @@
     }
   }
 
-  // ─── Telemetry & Charts Rendering ───
+  function formatCompactPair(usedBytes, totalBytes) {
+    const total = Math.max(0, Number(totalBytes) || 0);
+    const used = Math.max(0, Number(usedBytes) || 0);
+    const GB = 1024 * 1024 * 1024;
+    const MB = 1024 * 1024;
+    if (total >= GB) {
+      return `${(used / GB).toFixed(2)} / ${(total / GB).toFixed(2)} GB`;
+    }
+    if (total >= MB) {
+      return `${Math.round(used / MB)} / ${Math.round(total / MB)} MB`;
+    }
+    return `${formatBytes(used)} / ${formatBytes(total)}`;
+  }
+
+  // ─── Telemetry & Charts Rendering (Separated: Bot Strip vs Real VPS Strip) ───
   function meterSeverity(pct) {
     if (pct >= 85) return 'danger';
     if (pct >= 65) return 'warn';
     return 'ok';
+  }
+
+  function updateVpsMetricsStrip({
+    hostCpuPct,
+    cores,
+    load1m,
+    cpuModel,
+    ramUsedBytes,
+    ramTotalBytes,
+    ramAvailBytes,
+    ramPct,
+    diskUsedBytes,
+    diskTotalBytes,
+    diskFreeBytes,
+    diskPct,
+    swapUsedBytes,
+    swapTotalBytes,
+    swapPct,
+    osUptimeSec,
+    distroLabel,
+  }) {
+    const cpuValEl = $('vpsMetricCpuVal');
+    if (!cpuValEl) return;
+
+    const safeCpu = Math.max(0, Math.min(100, Number(hostCpuPct) || 0));
+    cpuValEl.textContent = `${safeCpu.toFixed(1)}%`;
+    if ($('vpsMetricCpuSub')) {
+      $('vpsMetricCpuSub').textContent = `${cores || 1} vCPU · load ${Number(load1m || 0).toFixed(2)}`;
+    }
+    if ($('vpsCpuCard') && cpuModel) {
+      $('vpsCpuCard').title = `CPU Spec: ${cpuModel} (${cores || 1} cores)`;
+    }
+    const vpsMeterCpu = $('vpsMeterCpu');
+    if (vpsMeterCpu) {
+      vpsMeterCpu.style.width = `${Math.max(4, safeCpu)}%`;
+      vpsMeterCpu.className = `meter-fill ${meterSeverity(safeCpu)}`;
+    }
+
+    if (ramTotalBytes > 0) {
+      const safeRamPct = Math.max(0, Math.min(100, Number(ramPct) || 0));
+      if ($('vpsMetricRamVal')) {
+        $('vpsMetricRamVal').textContent = formatCompactPair(ramUsedBytes, ramTotalBytes);
+      }
+      if ($('vpsMetricRamSub')) {
+        $('vpsMetricRamSub').textContent = `${safeRamPct.toFixed(1)}% · Free ${formatBytes(ramAvailBytes)}`;
+      }
+      const vpsMeterRam = $('vpsMeterRam');
+      if (vpsMeterRam) {
+        vpsMeterRam.style.width = `${Math.max(4, safeRamPct)}%`;
+        vpsMeterRam.className = `meter-fill ${meterSeverity(safeRamPct)}`;
+      }
+    }
+
+    if (diskTotalBytes > 0) {
+      const safeDiskPct = Math.max(0, Math.min(100, Number(diskPct) || 0));
+      if ($('vpsMetricDiskVal')) {
+        $('vpsMetricDiskVal').textContent = formatCompactPair(diskUsedBytes, diskTotalBytes);
+      }
+      if ($('vpsMetricDiskSub')) {
+        $('vpsMetricDiskSub').textContent = `${safeDiskPct.toFixed(1)}% · Free ${formatBytes(diskFreeBytes)}`;
+      }
+      const vpsMeterDisk = $('vpsMeterDisk');
+      if (vpsMeterDisk) {
+        vpsMeterDisk.style.width = `${Math.max(4, safeDiskPct)}%`;
+        vpsMeterDisk.className = `meter-fill ${meterSeverity(safeDiskPct)}`;
+      }
+    }
+
+    const hasSwap = Number(swapTotalBytes) > 0;
+    const safeSwapPct = hasSwap ? Math.max(0, Math.min(100, Number(swapPct) || 0)) : 6;
+    if ($('vpsMetricSwapVal')) {
+      $('vpsMetricSwapVal').textContent = hasSwap
+        ? formatCompactPair(swapUsedBytes, swapTotalBytes)
+        : `Up ${formatUptime(osUptimeSec || 0)}`;
+    }
+    if ($('vpsMetricSwapSub')) {
+      $('vpsMetricSwapSub').textContent = hasSwap
+        ? `Swap ${safeSwapPct.toFixed(1)}% · Up ${formatUptime(osUptimeSec || 0)}`
+        : `Swap Off · ${distroLabel || 'Linux Host'}`;
+    }
+    const vpsMeterSwap = $('vpsMeterSwap');
+    if (vpsMeterSwap) {
+      vpsMeterSwap.style.width = `${Math.max(4, safeSwapPct)}%`;
+      vpsMeterSwap.className = `meter-fill ${hasSwap ? meterSeverity(safeSwapPct) : 'ok'}`;
+    }
   }
 
   function updateMetricsStrip(sample) {
@@ -546,27 +645,30 @@
 
     $('headerUptime').textContent = formatUptime(sample.runtime?.processUptimeSec || 0);
 
+    // 1) Bot-Only Strip (#view-console) — 100% Bot Daemon Process Metrics
     const cpuPct = Number(sample.cpu?.processPct || 0);
-    const load1m = Array.isArray(sample.cpu?.loadAvg) ? sample.cpu.loadAvg[0] : 0;
+    const normBotCpu = Number(sample.cpu?.normalizedPct ?? cpuPct);
+    const botPid = sample.runtime?.pid || state.overview?.host?.pid || '-';
     $('metricCpuVal').textContent = `${cpuPct.toFixed(1)}%`;
-    $('metricCpuSub').textContent = `${sample.cpu?.cores || 1}c · load ${Number(load1m || 0).toFixed(2)}`;
+    $('metricCpuSub').textContent = `PID ${botPid} · Bot Process`;
     const meterCpu = $('meterCpu');
-    meterCpu.style.width = `${Math.max(3, Math.min(100, cpuPct))}%`;
-    meterCpu.className = `meter-fill ${meterSeverity(cpuPct)}`;
+    meterCpu.style.width = `${Math.max(3, Math.min(100, normBotCpu))}%`;
+    meterCpu.className = `meter-fill ${meterSeverity(normBotCpu)}`;
 
     const rssMb = Number(sample.memory?.rssMb || 0);
     const heapUsed = Number(sample.memory?.heapUsedMb || 0);
-    const heapTotal = Number(sample.memory?.heapTotalMb || 1);
-    const osMemPct = Number(sample.memory?.osMemPct || 0);
+    const heapTotal = Math.max(1, Number(sample.memory?.heapTotalMb || 1));
+    const botHeapPct = Math.min(100, (heapUsed / heapTotal) * 100);
     $('metricMemVal').textContent = `${rssMb.toFixed(1)} MB`;
-    $('metricMemSub').textContent = `Heap ${heapUsed.toFixed(0)}/${heapTotal.toFixed(0)} MB`;
+    $('metricMemSub').textContent = `V8 Heap ${heapUsed.toFixed(0)}/${heapTotal.toFixed(0)} MB`;
     const meterMem = $('meterMem');
-    meterMem.style.width = `${Math.max(5, Math.min(100, osMemPct))}%`;
-    meterMem.className = `meter-fill ${meterSeverity(osMemPct)}`;
+    meterMem.style.width = `${Math.max(5, botHeapPct)}%`;
+    meterMem.className = `meter-fill ${meterSeverity(botHeapPct)}`;
 
     const loopMs = Number(sample.runtime?.eventLoopMs || 0);
+    const totalCmds = Number(sample.runtime?.totalCommands || 0);
     $('metricLoopVal').textContent = `${loopMs.toFixed(2)} ms`;
-    $('metricLoopSub').textContent = `${sample.runtime?.cmdPerMin || 0} cmds/min`;
+    $('metricLoopSub').textContent = `${sample.runtime?.cmdPerMin || 0}/min · ${formatNumber(totalCmds)} total`;
     const loopPct = Math.min(100, (loopMs / 50) * 100);
     const meterLoop = $('meterLoop');
     meterLoop.style.width = `${Math.max(4, loopPct)}%`;
@@ -578,14 +680,45 @@
 
     const storage = sample.storage;
     if (storage) {
-      const diskPct = Number(storage.diskUsedPct || 0);
-      $('metricDiskVal').textContent = formatBytes(storage.dbBytes || 0);
-      $('metricDiskSub').textContent =
-        diskPct > 0 ? `Host disk ${diskPct}%` : `Backups ${formatBytes(storage.backupsBytes || 0)}`;
+      const dbBytes = Number(storage.dbBytes || 0);
+      const walBytes = Number(storage.walBytes || 0);
+      const backupsCount = Number(storage.backupsCount || 0);
+      const botDataPct = Math.min(100, Math.max(5, (dbBytes / (128 * 1024 * 1024)) * 100));
+      $('metricDiskVal').textContent = formatBytes(dbBytes);
+      $('metricDiskSub').textContent = `WAL ${formatBytes(walBytes)} · ${backupsCount} snap`;
       const meterDisk = $('meterDisk');
-      meterDisk.style.width = `${Math.max(5, Math.min(100, diskPct || 10))}%`;
-      meterDisk.className = `meter-fill ${meterSeverity(diskPct)}`;
+      meterDisk.style.width = `${botDataPct}%`;
+      meterDisk.className = `meter-fill ${meterSeverity(botDataPct)}`;
     }
+
+    // 2) Real VPS Host Strip (#view-vps) — Live 1.5s VPS Hardware Specs & Usage
+    const ramTotalB =
+      Number(sample.memory?.osTotalBytes) || Number(sample.memory?.osTotalMb || 0) * 1048576;
+    const ramUsedB =
+      Number(sample.memory?.osUsedBytes) || Number(sample.memory?.osUsedMb || 0) * 1048576;
+    const ramAvailB =
+      Number(sample.memory?.osAvailBytes) || Math.max(0, ramTotalB - ramUsedB);
+    const rootDiskFromSnap = state.vpsSnapshot?.disks?.[0];
+
+    updateVpsMetricsStrip({
+      hostCpuPct: sample.cpu?.hostCpuPct ?? sample.cpu?.hostLoadPct ?? 0,
+      cores: sample.cpu?.cores || state.vpsSnapshot?.cpu?.cores || 1,
+      load1m: Array.isArray(sample.cpu?.loadAvg) ? sample.cpu.loadAvg[0] : 0,
+      cpuModel: sample.host?.cpuModel || state.vpsSnapshot?.cpu?.model || '',
+      ramUsedBytes: ramUsedB,
+      ramTotalBytes: ramTotalB,
+      ramAvailBytes: ramAvailB,
+      ramPct: sample.memory?.osMemPct || 0,
+      diskUsedBytes: rootDiskFromSnap?.usedBytes || storage?.diskUsedBytes || 0,
+      diskTotalBytes: rootDiskFromSnap?.totalBytes || storage?.diskTotalBytes || 0,
+      diskFreeBytes: rootDiskFromSnap?.freeBytes || storage?.diskFreeBytes || 0,
+      diskPct: rootDiskFromSnap?.usedPct || storage?.diskUsedPct || 0,
+      swapUsedBytes: sample.memory?.swapUsedBytes ?? state.vpsSnapshot?.memory?.swapUsedBytes ?? 0,
+      swapTotalBytes: sample.memory?.swapTotalBytes ?? state.vpsSnapshot?.memory?.swapTotalBytes ?? 0,
+      swapPct: sample.memory?.swapPct ?? state.vpsSnapshot?.memory?.swapUsedPct ?? 0,
+      osUptimeSec: sample.runtime?.osUptimeSec || state.vpsSnapshot?.host?.uptimeSec || 0,
+      distroLabel: sample.host?.distro || state.vpsSnapshot?.host?.distro || 'Linux',
+    });
   }
 
   function drawAllCharts() {
@@ -810,13 +943,14 @@
     updateWaBadge(ov.instance.wa, ov.instance.operational);
     if (ov.telemetry) updateMetricsStrip(ov.telemetry);
 
+    const curBotMode = ov.instance.operational?.botMode || ov.instance.operational?.mode || 'public';
     const envRows = [
       ['Bot Name / Prefix', `${ov.instance.name} (${ov.instance.prefix})`],
+      ['Operational Mode', `${String(curBotMode).toUpperCase()} · Buttons ${ov.instance.operational?.useButtons ? 'ON' : 'OFF'}`],
+      ['Node.js / Bot PID', `${ov.host.nodeVersion} · PID ${ov.host.pid}`],
       ['SQLite Driver', ov.instance.sqliteDriver],
       ['Card Renderer', ov.instance.cardEngine],
-      ['Node.js / PID', `${ov.host.nodeVersion} · PID ${ov.host.pid}`],
-      ['Host OS', `${ov.host.hostname} · ${ov.host.platform}`],
-      ['CPU Hardware', `${ov.host.cpuModel} (${ov.host.cpuCores} cores)`],
+      ['Panel Endpoint', ov.instance.bind],
       ['Loaded Commands', `${ov.instance.commands.commandsCount} primary (${ov.instance.commands.aliasesCount} aliases)`],
     ];
     $('runtimeEnvKv').innerHTML = envRows
@@ -1564,6 +1698,27 @@
       state.vpsPublicIp = vps.network.publicIp;
     }
 
+    const primaryDisk = (vps.disks || []).find((d) => d.mount === '/') || (vps.disks || [])[0];
+    updateVpsMetricsStrip({
+      hostCpuPct: vps.cpu?.hostPct ?? 0,
+      cores: vps.cpu?.cores || 1,
+      load1m: vps.cpu?.load1 ?? 0,
+      cpuModel: vps.cpu?.model || '',
+      ramUsedBytes: vps.memory?.usedBytes || 0,
+      ramTotalBytes: vps.memory?.totalBytes || 0,
+      ramAvailBytes: vps.memory?.freeBytes || 0,
+      ramPct: vps.memory?.usedPct || 0,
+      diskUsedBytes: primaryDisk?.usedBytes || 0,
+      diskTotalBytes: primaryDisk?.totalBytes || 0,
+      diskFreeBytes: primaryDisk?.freeBytes || 0,
+      diskPct: primaryDisk?.usedPct || 0,
+      swapUsedBytes: vps.memory?.swapUsedBytes || 0,
+      swapTotalBytes: vps.memory?.swapTotalBytes || 0,
+      swapPct: vps.memory?.swapUsedPct || 0,
+      osUptimeSec: vps.host?.uptimeSec || 0,
+      distroLabel: `${vps.host?.distro || 'Linux'} · ${vps.host?.arch || ''}`.replace(/\s+·\s*$/, ''),
+    });
+
     const ifaces = (vps.network?.interfaces || [])
       .map((n) => `${n.iface}: ${n.address} (${n.family})`)
       .join(' · ');
@@ -1667,6 +1822,12 @@
       sec.classList.toggle('hidden', sec.id !== `view-${viewName}`);
     });
     setSidebarOpen(false);
+    const workspaceEl = document.querySelector('.workspace');
+    if (workspaceEl && window.innerWidth >= 1024) {
+      workspaceEl.scrollTop = 0;
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
     try {
       if (viewName === 'console') {

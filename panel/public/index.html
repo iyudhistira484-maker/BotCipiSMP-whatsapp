@@ -15,8 +15,8 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/vendor/xterm.css?v=20261127x" />
-  <link rel="stylesheet" href="/styles.css?v=20261127x" />
+  <link rel="stylesheet" href="/vendor/xterm.css?v=20261128a" />
+  <link rel="stylesheet" href="/styles.css?v=20261128a" />
 </head>
 <body>
   <!-- ═══ Authentication Gate ═══ -->
@@ -269,79 +269,78 @@
       </nav>
 
       <main class="content-body">
-        <!-- ═══ Persistent 4-Metric Resource Strip ═══ -->
-        <section class="metrics-strip" aria-label="Resource Telemetry">
-          <div class="metric-card">
-            <div class="metric-head">
-              <span>
-                <span class="metric-label-full">CPU Load (Process / Host)</span>
-                <span class="metric-label-short">CPU Load</span>
-              </span>
-              <span class="metric-icon-box">
-                <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              </span>
-            </div>
-            <div class="metric-value-row">
-              <span id="metricCpuVal" class="metric-value">0.0%</span>
-              <span id="metricCpuSub" class="metric-sub">0c · load 0.00</span>
-            </div>
-            <div class="meter-track"><div id="meterCpu" class="meter-fill" style="width: 4%;"></div></div>
-          </div>
-
-          <div class="metric-card">
-            <div class="metric-head">
-              <span>
-                <span class="metric-label-full">Memory (Node RSS / V8 Heap)</span>
-                <span class="metric-label-short">Memory RSS</span>
-              </span>
-              <span class="metric-icon-box">
-                <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
-              </span>
-            </div>
-            <div class="metric-value-row">
-              <span id="metricMemVal" class="metric-value">0.0 MB</span>
-              <span id="metricMemSub" class="metric-sub">Heap 0/0 MB</span>
-            </div>
-            <div class="meter-track"><div id="meterMem" class="meter-fill ok" style="width: 8%;"></div></div>
-          </div>
-
-          <div class="metric-card">
-            <div class="metric-head">
-              <span>
-                <span class="metric-label-full">SQLite WAL &amp; Host Disk</span>
-                <span class="metric-label-short">SQLite &amp; Disk</span>
-              </span>
-              <span class="metric-icon-box">
-                <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-              </span>
-            </div>
-            <div class="metric-value-row">
-              <span id="metricDiskVal" class="metric-value">0 KB</span>
-              <span id="metricDiskSub" class="metric-sub">Disk 0% used</span>
-            </div>
-            <div class="meter-track"><div id="meterDisk" class="meter-fill" style="width: 10%;"></div></div>
-          </div>
-
-          <div class="metric-card">
-            <div class="metric-head">
-              <span>
-                <span class="metric-label-full">Event-Loop &amp; Throughput</span>
-                <span class="metric-label-short">Event-Loop</span>
-              </span>
-              <span class="metric-icon-box">
-                <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </span>
-            </div>
-            <div class="metric-value-row">
-              <span id="metricLoopVal" class="metric-value">0.00 ms</span>
-              <span id="metricLoopSub" class="metric-sub">0 cmds/min</span>
-            </div>
-            <div class="meter-track"><div id="meterLoop" class="meter-fill ok" style="width: 4%;"></div></div>
-          </div>
-        </section>
-
-        <!-- ═══ VIEW 1: Console & Live Telemetry ═══ -->
+        <!-- ═══ VIEW 1: Bot Console & Bot-Only Live Telemetry ═══ -->
         <section id="view-console" class="view-section">
+          <div id="botMetricsStrip" class="metrics-strip" aria-label="Bot Instance Telemetry">
+            <div class="metric-card">
+              <div class="metric-head">
+                <span>
+                  <span class="metric-label-full">Bot CPU (Node Process)</span>
+                  <span class="metric-label-short">Bot CPU</span>
+                </span>
+                <span class="metric-icon-box">
+                  <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </span>
+              </div>
+              <div class="metric-value-row">
+                <span id="metricCpuVal" class="metric-value">0.0%</span>
+                <span id="metricCpuSub" class="metric-sub">PID - · Bot Thread</span>
+              </div>
+              <div class="meter-track"><div id="meterCpu" class="meter-fill" style="width: 4%;"></div></div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-head">
+                <span>
+                  <span class="metric-label-full">Bot Memory (Node RSS)</span>
+                  <span class="metric-label-short">Bot Memory</span>
+                </span>
+                <span class="metric-icon-box">
+                  <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+                </span>
+              </div>
+              <div class="metric-value-row">
+                <span id="metricMemVal" class="metric-value">0.0 MB</span>
+                <span id="metricMemSub" class="metric-sub">V8 Heap 0/0 MB</span>
+              </div>
+              <div class="meter-track"><div id="meterMem" class="meter-fill ok" style="width: 8%;"></div></div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-head">
+                <span>
+                  <span class="metric-label-full">Bot SQLite &amp; Session</span>
+                  <span class="metric-label-short">Bot DB &amp; Auth</span>
+                </span>
+                <span class="metric-icon-box">
+                  <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                </span>
+              </div>
+              <div class="metric-value-row">
+                <span id="metricDiskVal" class="metric-value">0 KB</span>
+                <span id="metricDiskSub" class="metric-sub">WAL 0 B · 0 backups</span>
+              </div>
+              <div class="meter-track"><div id="meterDisk" class="meter-fill ok" style="width: 8%;"></div></div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-head">
+                <span>
+                  <span class="metric-label-full">Bot Event-Loop &amp; Cmds</span>
+                  <span class="metric-label-short">Bot Loop</span>
+                </span>
+                <span class="metric-icon-box">
+                  <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </span>
+              </div>
+              <div class="metric-value-row">
+                <span id="metricLoopVal" class="metric-value">0.00 ms</span>
+                <span id="metricLoopSub" class="metric-sub">0 cmds/min</span>
+              </div>
+              <div class="meter-track"><div id="meterLoop" class="meter-fill ok" style="width: 4%;"></div></div>
+            </div>
+          </div>
+
           <div class="console-grid">
             <div class="panel-card terminal-card">
               <div class="panel-head terminal-bezel-head">
@@ -456,7 +455,7 @@
 
             <div class="panel-card">
               <div class="panel-head">
-                <div class="panel-title">Host &amp; Instance Environment</div>
+                <div class="panel-title">Bot Instance Environment</div>
               </div>
               <div class="panel-body">
                 <div id="runtimeEnvKv" class="kv-list"></div>
@@ -716,6 +715,77 @@
 
         <!-- ═══ VIEW 1B: VPS Host Control & Full Interactive PTY Terminal ═══ -->
         <section id="view-vps" class="view-section hidden">
+          <!-- Dedicated Real VPS Hardware Specification & Resource Strip -->
+          <div id="vpsMetricsStrip" class="metrics-strip" aria-label="VPS Hardware &amp; Resource Telemetry">
+            <div id="vpsCpuCard" class="metric-card">
+              <div class="metric-head">
+                <span>
+                  <span class="metric-label-full">VPS CPU &amp; vCPU Cores</span>
+                  <span class="metric-label-short">VPS CPU</span>
+                </span>
+                <span class="metric-icon-box">
+                  <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
+                </span>
+              </div>
+              <div class="metric-value-row">
+                <span id="vpsMetricCpuVal" class="metric-value">0.0%</span>
+                <span id="vpsMetricCpuSub" class="metric-sub">0 vCPU · load 0.00</span>
+              </div>
+              <div class="meter-track"><div id="vpsMeterCpu" class="meter-fill ok" style="width: 4%;"></div></div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-head">
+                <span>
+                  <span class="metric-label-full">VPS Physical RAM (Spec)</span>
+                  <span class="metric-label-short">VPS RAM</span>
+                </span>
+                <span class="metric-icon-box">
+                  <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+                </span>
+              </div>
+              <div class="metric-value-row">
+                <span id="vpsMetricRamVal" class="metric-value">0 / 0 GB</span>
+                <span id="vpsMetricRamSub" class="metric-sub">0% · Free 0 GB</span>
+              </div>
+              <div class="meter-track"><div id="vpsMeterRam" class="meter-fill ok" style="width: 6%;"></div></div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-head">
+                <span>
+                  <span class="metric-label-full">VPS Disk Storage (Root)</span>
+                  <span class="metric-label-short">VPS Disk</span>
+                </span>
+                <span class="metric-icon-box">
+                  <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                </span>
+              </div>
+              <div class="metric-value-row">
+                <span id="vpsMetricDiskVal" class="metric-value">0 / 0 GB</span>
+                <span id="vpsMetricDiskSub" class="metric-sub">0% · Free 0 GB</span>
+              </div>
+              <div class="meter-track"><div id="vpsMeterDisk" class="meter-fill ok" style="width: 8%;"></div></div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-head">
+                <span>
+                  <span class="metric-label-full">VPS Swap &amp; Host Uptime</span>
+                  <span class="metric-label-short">Swap &amp; Host</span>
+                </span>
+                <span class="metric-icon-box">
+                  <svg width="13" height="13" class="icon icon-sm" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                </span>
+              </div>
+              <div class="metric-value-row">
+                <span id="vpsMetricSwapVal" class="metric-value">Up 00h 00m</span>
+                <span id="vpsMetricSwapSub" class="metric-sub">Swap: 0 B · Linux</span>
+              </div>
+              <div class="meter-track"><div id="vpsMeterSwap" class="meter-fill ok" style="width: 4%;"></div></div>
+            </div>
+          </div>
+
           <div id="vpsTerminalCard" class="panel-card terminal-card vps-terminal-card">
             <div class="panel-head terminal-bezel-head">
               <div class="panel-title">
@@ -968,9 +1038,9 @@
 
   <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
-  <script src="/vendor/xterm.js?v=20261127x"></script>
-  <script src="/vendor/addon-fit.js?v=20261127x"></script>
-  <script src="/charts.js?v=20261127x"></script>
-  <script src="/app.js?v=20261127x"></script>
+  <script src="/vendor/xterm.js?v=20261128a"></script>
+  <script src="/vendor/addon-fit.js?v=20261128a"></script>
+  <script src="/charts.js?v=20261128a"></script>
+  <script src="/app.js?v=20261128a"></script>
 </body>
 </html>

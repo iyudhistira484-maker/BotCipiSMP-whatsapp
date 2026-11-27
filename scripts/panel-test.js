@@ -671,6 +671,47 @@ async function main() {
     });
   });
 
+  // 13. Locked Desktop Sidebar + Separated Bot vs Real VPS Telemetry & Responsive Breakpoints
+  await step('Desktop sidebar scroll-lock + Separated Bot (#view-console) vs Real VPS (#view-vps) telemetry', async () => {
+    const htmlRes = await req('/', { cookie: '' });
+    assert.equal(htmlRes.status, 200);
+    const html = htmlRes.data;
+
+    // #botMetricsStrip must sit strictly inside #view-console, and #vpsMetricsStrip strictly inside #view-vps
+    const idxConsoleView = html.indexOf('id="view-console"');
+    const idxBotStrip = html.indexOf('id="botMetricsStrip"');
+    const idxRuntimeView = html.indexOf('id="view-runtime"');
+    const idxVpsView = html.indexOf('id="view-vps"');
+    const idxVpsStrip = html.indexOf('id="vpsMetricsStrip"');
+    const idxAuditView = html.indexOf('id="view-audit"');
+
+    assert.ok(idxConsoleView > 0 && idxBotStrip > idxConsoleView && idxBotStrip < idxRuntimeView,
+      '#botMetricsStrip wajib berada di dalam #view-console saja');
+    assert.ok(idxVpsView > 0 && idxVpsStrip > idxVpsView && idxVpsStrip < idxAuditView,
+      '#vpsMetricsStrip wajib berada di dalam #view-vps saja');
+    assert.ok(html.includes('Bot CPU (Node Process)') && html.includes('Bot Memory (Node RSS)'));
+    assert.ok(html.includes('VPS CPU &amp; vCPU Cores') && html.includes('VPS Physical RAM (Spec)'));
+    assert.ok(html.includes('id="vpsMetricCpuVal"') && html.includes('id="vpsMetricRamVal"') && html.includes('id="vpsMetricDiskVal"') && html.includes('id="vpsMetricSwapVal"'));
+
+    const cssRes = await req('/styles.css', { cookie: '' });
+    assert.equal(cssRes.status, 200);
+    assert.ok(cssRes.data.includes('overflow-x: clip;'), 'html, body wajib memakai overflow-x: clip agar tidak merusak sticky/scroll lock');
+    assert.ok(cssRes.data.includes('.app-shell > .sidebar') && cssRes.data.includes('.app-shell > .workspace'),
+      'Desktop .app-shell wajib memisahkan scroll container .sidebar dan .workspace');
+
+    const jsRes = await req('/app.js', { cookie: '' });
+    assert.equal(jsRes.status, 200);
+    assert.ok(jsRes.data.includes('function updateVpsMetricsStrip(') && jsRes.data.includes('function formatCompactPair('));
+
+    const ov = await req('/api/overview');
+    assert.equal(ov.status, 200);
+    const t = ov.data.overview.telemetry;
+    assert.ok(t && typeof t.cpu.hostCpuPct === 'number', 'telemetry.cpu.hostCpuPct wajib angka akurat dari /proc/stat');
+    assert.ok(t.memory.osTotalBytes > 0 && t.memory.osUsedBytes > 0, 'telemetry.memory.osTotalBytes & osUsedBytes wajib sesuai spesifikasi RAM fisik VPS');
+    assert.ok(typeof t.runtime.pid === 'number' && t.runtime.pid > 0, 'telemetry.runtime.pid wajib tersedia untuk statistik proses Bot');
+    assert.ok(t.host && t.host.cpuModel && t.host.distro, 'telemetry.host wajib memuat spesifikasi CPU & OS VPS');
+  });
+
   await stopControlPanelServer();
   closeDatabase();
   fs.rmSync(tmpRoot, { recursive: true, force: true });
