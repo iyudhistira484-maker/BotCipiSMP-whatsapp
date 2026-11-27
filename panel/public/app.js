@@ -73,6 +73,9 @@
       }
       if (state.activeView === 'console') {
         requestAnimationFrame(drawAllCharts);
+        setTimeout(() => requestAnimationFrame(drawAllCharts), 255);
+      } else if (state.activeView === 'vps') {
+        setTimeout(() => requestAnimationFrame(fitVpsPty), 255);
       }
       return;
     }
@@ -129,8 +132,208 @@
     el.textContent = msg;
     stack.appendChild(el);
     setTimeout(() => {
-      el.remove();
-    }, 3400);
+      el.classList.add('leaving');
+      setTimeout(() => el.remove(), 180);
+    }, 3200);
+  }
+
+  function closeUserDrawer() {
+    const bd = $('userDrawerBackdrop');
+    if (!bd || bd.classList.contains('hidden')) return;
+    bd.classList.add('closing');
+    setTimeout(() => {
+      bd.classList.add('hidden');
+      bd.classList.remove('closing');
+    }, 170);
+  }
+
+  // ─── Operator Command Palette (Ctrl+K / Cmd+K) ───
+  let paletteFiltered = [];
+  let paletteSelectedIdx = 0;
+
+  function getPaletteEntries() {
+    return [
+      {
+        title: 'Console & Telemetry Graphs',
+        sub: 'Live redacted instance console, Quick CLI & CPU/RAM/Loop spline graphs',
+        tag: 'View',
+        keywords: 'console logs graphs cpu memory telemetry tty0',
+        run: () => switchView('console'),
+      },
+      {
+        title: 'VPS Terminal (Full Interactive PTY)',
+        sub: 'Real SSH-grade /dev/pts shell (nano, htop, vim, Tab, [Y/n]) & host processes',
+        tag: 'View',
+        keywords: 'vps ssh pty terminal bash linux host processes disk',
+        run: () => switchView('vps'),
+      },
+      {
+        title: 'Runtime Switches & 89 Commands',
+        sub: 'Public/Self mode, maintenance, WhatsApp pairing code & command registry',
+        tag: 'View',
+        keywords: 'runtime commands pairing mode public self maintenance',
+        run: () => switchView('runtime'),
+      },
+      {
+        title: 'Minecraft & Pterodactyl Wings',
+        sub: 'Live Java/Bedrock server probe, Wings power actions & whitelisted RCON',
+        tag: 'View',
+        keywords: 'minecraft rcon wings pterodactyl server start restart',
+        run: () => switchView('minecraft'),
+      },
+      {
+        title: 'Users, Economy & Sakura VIP',
+        sub: 'Inspect SQLite accounts, adjust Sakura Coin wallet/bank, VIP & moderation',
+        tag: 'View',
+        keywords: 'users economy coins vip ban wallet sqlite',
+        run: () => switchView('users'),
+      },
+      {
+        title: 'Broadcast & Support Tickets',
+        sub: 'Multi-channel WhatsApp/Minecraft/Discord announcements & ticket queue',
+        tag: 'View',
+        keywords: 'broadcast tickets support discord announcement',
+        run: () => switchView('comms'),
+      },
+      {
+        title: 'Backups & SQLite WAL Storage',
+        sub: 'Create online database snapshots, checkpoint WAL & inspect disk usage',
+        tag: 'View',
+        keywords: 'storage backups sqlite wal snapshot download',
+        run: () => switchView('storage'),
+      },
+      {
+        title: 'Audit Ledger & Security Posture',
+        sub: 'Review administrative actions, HMAC session security & access logs',
+        tag: 'View',
+        keywords: 'audit security logs posture auth',
+        run: () => switchView('audit'),
+      },
+      {
+        title: 'Toggle Dark / Light Theme',
+        sub: 'Switch between Obsidian Dark and Swiss Architectural Light theme',
+        tag: 'Action',
+        keywords: 'theme dark light mode appearance color',
+        run: () => toggleTheme(),
+      },
+      {
+        title: 'Hot-Reload Command Registry',
+        sub: 'Reload all 89 WhatsApp bot commands from disk without dropping socket',
+        tag: 'Action',
+        keywords: 'reload commands hot refresh registry',
+        run: () => $('btnReloadCmds')?.click(),
+      },
+      {
+        title: 'Create SQLite Database Snapshot',
+        sub: 'Run online SQLite backup immediately and save checksummed archive',
+        tag: 'Action',
+        keywords: 'create backup snapshot database save',
+        run: async () => {
+          const res = await api('/api/storage/backup', { method: 'POST' });
+          toast(`Snapshot created: ${res.backup?.name || 'OK'}`);
+          if (state.activeView === 'storage') await loadStorageView();
+        },
+      },
+      {
+        title: 'Checkpoint SQLite WAL Journal',
+        sub: 'Flush write-ahead log frames into primary SQLite database file',
+        tag: 'Action',
+        keywords: 'wal checkpoint flush sqlite journal',
+        run: async () => {
+          await api('/api/storage/checkpoint', { method: 'POST' });
+          toast('SQLite WAL checkpoint completed');
+          if (state.activeView === 'storage') await loadStorageView();
+        },
+      },
+      {
+        title: 'Respawn Interactive VPS PTY Shell',
+        sub: 'Open VPS Terminal and spawn a fresh interactive /bin/bash PTY session',
+        tag: 'Action',
+        keywords: 'respawn reconnect pty shell bash reset terminal',
+        run: async () => {
+          await switchView('vps');
+          connectPtyWebSocket(true);
+          toast('Interactive PTY session respawned');
+        },
+      },
+    ];
+  }
+
+  function renderCmdPaletteList() {
+    const listEl = $('cmdPaletteList');
+    if (!listEl) return;
+    if (!paletteFiltered.length) {
+      listEl.innerHTML = `<div style="padding:18px 12px; text-align:center; color:var(--text-muted); font-size:12px;">No matching view or operator action.</div>`;
+      return;
+    }
+    listEl.innerHTML = paletteFiltered
+      .map(
+        (item, idx) =>
+          `<button type="button" class="cmd-palette-item ${idx === paletteSelectedIdx ? 'selected' : ''}" data-palette-idx="${idx}" role="option">` +
+          `<span class="cmd-palette-left">` +
+          `<span class="cmd-palette-title">${escapeHtml(item.title)}</span>` +
+          `<span class="cmd-palette-sub">${escapeHtml(item.sub)}</span>` +
+          `</span>` +
+          `<span class="cmd-palette-tag">${escapeHtml(item.tag)}</span>` +
+          `</button>`
+      )
+      .join('');
+
+    listEl.querySelectorAll('[data-palette-idx]').forEach((btn) => {
+      btn.addEventListener('mouseenter', () => {
+        paletteSelectedIdx = Number(btn.dataset.paletteIdx) || 0;
+        listEl.querySelectorAll('.cmd-palette-item').forEach((el, i) => {
+          el.classList.toggle('selected', i === paletteSelectedIdx);
+        });
+      });
+      btn.addEventListener('click', () => {
+        executePaletteIndex(Number(btn.dataset.paletteIdx) || 0);
+      });
+    });
+
+    const activeRow = listEl.querySelector('.cmd-palette-item.selected');
+    activeRow?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function filterCmdPalette(query) {
+    const q = String(query || '').trim().toLowerCase();
+    const all = getPaletteEntries();
+    paletteFiltered = q
+      ? all.filter(
+          (it) =>
+            it.title.toLowerCase().includes(q) ||
+            it.sub.toLowerCase().includes(q) ||
+            it.keywords.includes(q)
+        )
+      : all;
+    paletteSelectedIdx = 0;
+    renderCmdPaletteList();
+  }
+
+  function openCmdPalette() {
+    if (!$('authOverlay')?.classList.contains('hidden')) return;
+    const bd = $('cmdPaletteBackdrop');
+    const inp = $('cmdPaletteInput');
+    if (!bd || !inp) return;
+    bd.classList.remove('hidden');
+    inp.value = '';
+    filterCmdPalette('');
+    requestAnimationFrame(() => inp.focus());
+  }
+
+  function closeCmdPalette() {
+    $('cmdPaletteBackdrop')?.classList.add('hidden');
+  }
+
+  async function executePaletteIndex(idx) {
+    const chosen = paletteFiltered[idx];
+    if (!chosen) return;
+    closeCmdPalette();
+    try {
+      await chosen.run();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   }
 
   function askConfirm(title, desc, onProceed) {
@@ -1298,10 +1501,49 @@
       sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false));
     }
 
+    $('cmdPaletteBtn')?.addEventListener('click', openCmdPalette);
+    $('cmdPaletteBackdrop')?.addEventListener('click', (e) => {
+      if (e.target === $('cmdPaletteBackdrop')) closeCmdPalette();
+    });
+    $('cmdPaletteInput')?.addEventListener('input', (e) => {
+      filterCmdPalette(e.target.value);
+    });
+    $('cmdPaletteInput')?.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (paletteFiltered.length) {
+          paletteSelectedIdx = (paletteSelectedIdx + 1) % paletteFiltered.length;
+          renderCmdPaletteList();
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (paletteFiltered.length) {
+          paletteSelectedIdx = (paletteSelectedIdx - 1 + paletteFiltered.length) % paletteFiltered.length;
+          renderCmdPaletteList();
+        }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        executePaletteIndex(paletteSelectedIdx);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeCmdPalette();
+      }
+    });
+
     document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        if ($('cmdPaletteBackdrop')?.classList.contains('hidden')) {
+          openCmdPalette();
+        } else {
+          closeCmdPalette();
+        }
+        return;
+      }
       if (e.key === 'Escape') {
         setSidebarOpen(false);
-        $('userDrawerBackdrop').classList.add('hidden');
+        closeUserDrawer();
+        closeCmdPalette();
         $('confirmModalBackdrop').classList.add('hidden');
       }
     });
@@ -1603,10 +1845,10 @@
     });
 
     $('btnCloseDrawer').addEventListener('click', () => {
-      $('userDrawerBackdrop').classList.add('hidden');
+      closeUserDrawer();
     });
     $('userDrawerBackdrop').addEventListener('click', (e) => {
-      if (e.target === $('userDrawerBackdrop')) $('userDrawerBackdrop').classList.add('hidden');
+      if (e.target === $('userDrawerBackdrop')) closeUserDrawer();
     });
 
     async function mutateSelectedUser(url, body, okMsg) {
@@ -1769,6 +2011,7 @@
       card.classList.toggle('tall', state.vpsTallMode);
       $('btnVpsExpand').textContent = state.vpsTallMode ? 'Compact View' : 'Tall View';
       requestAnimationFrame(fitVpsPty);
+      setTimeout(() => requestAnimationFrame(fitVpsPty), 255);
       state.vpsTerm?.focus();
     });
 
