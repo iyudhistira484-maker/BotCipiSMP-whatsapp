@@ -200,7 +200,7 @@ body {
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
   transition: background-color 200ms ease, color 150ms ease;
 }
 
@@ -540,7 +540,7 @@ svg.icon-sm {
   width: 100%;
 }
 
-/* ─── App Shell & Smooth Collapsible Sidebar ─── */
+/* ─── App Shell & Independent Locked Sidebar (Never Scrolls With Right Page) ─── */
 .app-shell {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
@@ -550,6 +550,35 @@ svg.icon-sm {
 }
 
 @media (min-width: 1024px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-shell > .sidebar {
+    position: relative;
+    height: 100%;
+    max-height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .app-shell > .workspace {
+    height: 100%;
+    max-height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scroll-behavior: smooth;
+  }
+
   .app-shell.sidebar-collapsed {
     grid-template-columns: 0px minmax(0, 1fr);
   }
@@ -1412,11 +1441,14 @@ svg.icon-sm {
 .metric-value {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-  font-size: 20px;
+  font-size: clamp(15.5px, 1.32vw, 19.5px);
   font-weight: 600;
   letter-spacing: -0.03em;
   color: var(--text-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .metric-sub {
@@ -2453,9 +2485,11 @@ svg.icon-sm {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 274px;
+    width: 276px;
     max-width: 84vw;
-    z-index: 70;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 75;
     transform: translateX(-104%);
     transition: transform 230ms var(--ease-smooth);
     box-shadow: var(--shadow-modal);
@@ -2475,6 +2509,9 @@ svg.icon-sm {
 
   .view-tabs-bar {
     display: flex;
+    position: sticky;
+    top: 56px;
+    z-index: 28;
   }
 
   .instance-header {
@@ -2486,8 +2523,14 @@ svg.icon-sm {
     gap: 14px;
   }
 
-  .two-col-grid {
-    grid-template-columns: 1fr;
+  .metric-value {
+    font-size: 17.5px;
+  }
+
+  .vps-key-btn {
+    height: 28px;
+    min-width: 38px;
+    font-size: 11px;
   }
 
   .charts-stack {
@@ -2496,6 +2539,7 @@ svg.icon-sm {
 }
 
 @media (max-width: 860px) {
+  .two-col-grid,
   .charts-stack {
     grid-template-columns: 1fr;
   }
@@ -2590,11 +2634,17 @@ svg.icon-sm {
   }
 
   #themeToggleBtn {
-    height: 34px;
-    padding: 0 10px;
+    height: 32px;
+    padding: 0 9px;
+  }
+
+  .cmd-palette-trigger {
+    width: 32px;
+    height: 32px;
   }
 
   .view-tabs-bar {
+    position: static;
     padding: 6px 12px;
   }
 
@@ -2634,12 +2684,24 @@ svg.icon-sm {
   }
 
   .metric-value {
-    font-size: 16.5px;
+    font-size: 14.8px;
   }
 
   .metric-sub {
     font-size: 10px;
     max-width: 100%;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 8.5px 10px;
+  }
+
+  .vps-key-btn {
+    height: 30px;
+    min-width: 38px;
+    padding: 0 9px;
+    font-size: 11px;
   }
 
   .panel-head {
