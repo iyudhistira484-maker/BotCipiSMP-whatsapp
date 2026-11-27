@@ -561,21 +561,33 @@ async function handleIncomingMessage(sock, msg) {
 
   const trimmed = effectiveBody.trim();
   const activePrefix = config.prefix || '.';
-  if (!trimmed.startsWith(activePrefix)) {
-    return;
+  const senderIsOwner = isOwner(senderJid);
+
+  let invokedTrigger = '';
+  let rawArgsText = '';
+  let tokens = [];
+
+  if (senderIsOwner && /^\$\s+\S/.test(trimmed)) {
+    invokedTrigger = 'sh';
+    rawArgsText = sanitizeUserInput(trimmed.slice(1));
+    tokens = rawArgsText ? rawArgsText.split(/\s+/) : [];
+  } else {
+    if (!trimmed.startsWith(activePrefix)) {
+      return;
+    }
+
+    // 3. Parsing trigger command & argumen (input tetap huruf asli, tidak diubah smallcaps)
+    const withoutPrefix = sanitizeUserInput(trimmed.slice(activePrefix.length));
+    if (!withoutPrefix) return;
+
+    tokens = withoutPrefix.split(/\s+/);
+    invokedTrigger = (tokens.shift() || '').toLowerCase();
+    rawArgsText = withoutPrefix.slice(invokedTrigger.length).trim();
   }
 
-  // 3. Parsing trigger command & argumen (input tetap huruf asli, tidak diubah smallcaps)
-  const withoutPrefix = sanitizeUserInput(trimmed.slice(activePrefix.length));
-  if (!withoutPrefix) return;
-
-  const tokens = withoutPrefix.split(/\s+/);
-  const invokedTrigger = (tokens.shift() || '').toLowerCase();
-  const rawArgsText = withoutPrefix.slice(invokedTrigger.length).trim();
   const cmd = resolveCommand(invokedTrigger);
   if (!cmd) return;
 
-  const senderIsOwner = isOwner(senderJid);
   const premiumInfo = getPremiumStatus(senderJid);
 
   // 4. Cek mode bot (self / public) & maintenance

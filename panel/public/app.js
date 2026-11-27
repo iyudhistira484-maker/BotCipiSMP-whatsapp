@@ -20,6 +20,13 @@
     userFilter: 'all',
     userSearch: '',
     selectedUser: null,
+    vpsSnapshot: null,
+    vpsEntries: [],
+    vpsHistory: [],
+    vpsHistoryIdx: -1,
+    vpsBusy: false,
+    vpsProcFilter: '',
+    vpsPublicIp: null,
     sse: null,
     confirmCallback: null,
   };
@@ -840,6 +847,272 @@
       .join('');
   }
 
+  // ─── VPS Host Control & Linux Shell Terminal View ───
+  function syncVpsTerminalChrome(term) {
+    if (!term) return;
+    const promptFull = `${term.user || 'operator'}@${term.hostname || 'vps'}:${term.displayCwd || '~'}$`;
+    const promptShort = `${term.displayCwd || '~'}$`;
+    if ($('vpsPromptFull')) $('vpsPromptFull').textContent = promptFull;
+    if ($('vpsPromptShort')) $('vpsPromptShort').textContent = promptShort;
+    if ($('vpsCwdBadge')) {
+      $('vpsCwdBadge').textContent = term.displayCwd || '~';
+      $('vpsCwdBadge').title = term.cwd || '';
+    }
+    const running = Boolean(term.running || state.vpsBusy);
+    const badge = $('vpsShellStateBadge');
+    if (badge) {
+      badge.textContent = running ? 'RUNNING' : 'IDLE';
+      badge.className = `badge ${running ? 'warn' : 'ok'}`;
+    }
+    if ($('btnVpsAbort')) $('btnVpsAbort').disabled = !running;
+    if ($('btnVpsExecSubmit')) $('btnVpsExecSubmit').disabled = running;
+  }
+
+  function renderVpsTerminal() {
+    const vp = $('vpsTerminalViewport');
+    if (!vp) return;
+    if (!state.vpsEntries.length) {
+      const term = state.vpsSnapshot?.terminal;
+      const hostInfo = state.vpsSnapshot?.host;
+      vp.innerHTML =
+        `<div class="vps-empty-hint mono">` +
+        `Connected to host shell (${escapeHtml(term?.shell || 'bash')}) on ${escapeHtml(hostInfo?.hostname || 'VPS')} · ` +
+        `${escapeHtml(hostInfo?.distro || 'Linux')}<br/>` +
+        `Working directory: ${escapeHtml(term?.cwd || '.')} — Directory changes via "cd" persist across commands. ` +
+        `Sensitive .env credentials are automatically redacted.` +
+        `</div>`;
+      return;
+    }
+
+    vp.innerHTML = state.vpsEntries
+      .map((ent) => {
+        const metaClass = ent.pending ? '' : ent.exitCode === 0 && !ent.timedOut ? 'ok' : 'err';
+        const metaText = ent.pending
+          ? 'running...'
+          : ent.timedOut
+            ? `timeout · ${ent.durationMs} ms`
+            : `exit ${ent.exitCode} · ${ent.durationMs} ms`;
+        return (
+          `<div class="vps-entry">` +
+          `<div class="vps-entry-head">` +
+          `<div><span class="vps-entry-prompt mono">${escapeHtml(ent.prompt)}</span> ` +
+          `<span class="vps-entry-cmd mono">${escapeHtml(ent.command)}</span></div>` +
+          `<span class="vps-entry-meta mono ${metaClass}">${escapeHtml(metaText)}</span>` +
+          `</div>` +
+          (ent.stdout ? `<pre class="vps-entry-out">${escapeHtml(ent.stdout)}</pre>` : '') +
+          (ent.stderr ? `<pre class="vps-entry-err">${escapeHtml(ent.stderr)}</pre>` : '') +
+          (!ent.pending && !ent.stdout && !ent.stderr
+            ? `<pre class="vps-entry-out" style="color:#6e7688;">(completed with no output)</pre>`
+            : '') +
+          `</div>`
+        );
+      })
+      .join('');
+
+    vp.scrollTop = vp.scrollHeight;
+  }
+
+  function renderVpsProcesses() {
+    const tbody = $('vpsProcessesBody');
+    if (!tbody) return;
+    const allProcs = state.vpsSnapshot?.processes || [];
+    const q = (state.vpsProcFilter || '').trim().toLowerCase();
+    const filtered = q
+      ? allProcs.filter(
+          (p) =>
+            String(p.pid).includes(q) ||
+            String(p.user || '').toLowerCase().includes(q) ||
+            String(p.command || '').toLowerCase().includes(q) ||
+            String(p.args || '').toLowerCase().includes(q)
+        )
+      : allProcs;
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:14px;">No matching host processes.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered
+      .map((p) => {
+        const actionCell = p.isSelf
+          ? `<span class="badge accent">Panel/Bot</span>`
+          : p.pid <= 1
+            ? `<span class="badge">Kernel</span>`
+            : `<button type="button" class="btn btn-danger btn-sm btn-kill-proc" data-pid="${p.pid}" data-cmd="${escapeHtml(p.command)}">Terminate</button>`;
+        return (
+          `<tr>` +
+          `<td class="mono cell-nowrap">${p.pid}</td>` +
+          `<td class="mono cell-nowrap">${escapeHtml(p.user)}</td>` +
+          `<td class="mono cell-nowrap">${Number(p.cpuPct || 0).toFixed(1)}%</td>` +
+          `<td class="mono cell-nowrap">${Number(p.memPct || 0).toFixed(1)}%</td>` +
+          `<td class="mono cell-nowrap">${Number(p.rssMb || 0).toFixed(1)} MB</td>` +
+          `<td class="mono cell-nowrap" style="color:var(--text-muted);">${escapeHtml(p.elapsed)}</td>` +
+          `<td class="mono" title="${escapeHtml(p.args)}">${escapeHtml(p.args || p.command)}</td>` +
+          `<td class="cell-nowrap">${actionCell}</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
+
+    tbody.querySelectorAll('.btn-kill-proc').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const pid = Number(btn.dataset.pid);
+        const name = btn.dataset.cmd || '';
+        askConfirm(
+          `Terminate Host Process PID ${pid}`,
+          `Send SIGTERM to process "${name}" (PID ${pid}) on the VPS host?`,
+          async () => {
+            await api('/api/vps/kill', { method: 'POST', body: { pid, signal: 'SIGTERM' } });
+            toast(`SIGTERM sent to PID ${pid}`);
+            await loadVpsView(false);
+          }
+        );
+      });
+    });
+  }
+
+  function renderVpsHostDetails(vps) {
+    if (!vps) return;
+    syncVpsTerminalChrome(vps.terminal);
+
+    if (vps.network?.publicIp) {
+      state.vpsPublicIp = vps.network.publicIp;
+    }
+
+    const ifaces = (vps.network?.interfaces || [])
+      .map((n) => `${n.iface}: ${n.address} (${n.family})`)
+      .join(' · ');
+
+    const pm2Summary =
+      Array.isArray(vps.pm2) && vps.pm2.length > 0
+        ? vps.pm2.map((p) => `${p.name} [${p.status}, ${p.memMb}MB]`).join(' · ')
+        : 'None / Not running under PM2';
+
+    const kvRows = [
+      ['Hostname & Operator', `${vps.terminal?.user || 'operator'}@${vps.host.hostname}`],
+      ['Operating System', `${vps.host.distro} (${vps.host.platform}/${vps.host.arch})`],
+      ['Kernel & Node Runtime', `${vps.host.kernel} · Node ${vps.host.nodeVersion}`],
+      ['CPU Model & Cores', `${vps.cpu.model} (${vps.cpu.cores} cores)`],
+      ['Host Load Average', `${vps.cpu.load1} (1m) · ${vps.cpu.load5} (5m) · ${vps.cpu.load15} (15m) · ${vps.cpu.hostPct}%`],
+      ['Host Physical RAM', `${formatBytes(vps.memory.usedBytes)} / ${formatBytes(vps.memory.totalBytes)} (${vps.memory.usedPct}%)`],
+      ['Host Uptime', formatUptime(vps.host.uptimeSec)],
+      ['Network Interfaces', ifaces || 'Loopback only'],
+      ['Detected Public IP', state.vpsPublicIp || 'Click "Check Public IP" above'],
+      ['PM2 Daemons', pm2Summary],
+    ];
+
+    const hostKvEl = $('vpsHostInfoKv');
+    if (hostKvEl) {
+      hostKvEl.innerHTML = kvRows
+        .map(
+          ([k, v]) =>
+            `<div class="kv-row"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val mono">${escapeHtml(v)}</span></div>`
+        )
+        .join('');
+    }
+
+    const swapSub = $('vpsSwapSub');
+    if (swapSub) {
+      swapSub.textContent =
+        vps.memory.swapTotalBytes > 0
+          ? `Swap: ${formatBytes(vps.memory.swapUsedBytes)} / ${formatBytes(vps.memory.swapTotalBytes)} (${vps.memory.swapUsedPct}%)`
+          : 'Swap: Disabled (0 B)';
+    }
+
+    const disksEl = $('vpsDisksList');
+    if (disksEl) {
+      const disks = vps.disks || [];
+      if (!disks.length) {
+        disksEl.innerHTML = `<div style="color:var(--text-muted); font-size:12.5px;">No mounted block filesystems detected.</div>`;
+      } else {
+        disksEl.innerHTML = disks
+          .map((d) => {
+            const pct = Math.min(100, Math.max(0, Number(d.usedPct) || 0));
+            const barState = pct >= 90 ? 'danger' : pct >= 75 ? 'warn' : 'ok';
+            return (
+              `<div class="vps-disk-item">` +
+              `<div class="vps-disk-top">` +
+              `<div><span class="vps-disk-mount mono">${escapeHtml(d.mount)}</span><span class="vps-disk-fs mono">${escapeHtml(d.filesystem)}</span></div>` +
+              `<span class="badge ${barState} mono">${pct}% used</span>` +
+              `</div>` +
+              `<div class="meter-track"><div class="meter-fill ${barState}" style="width:${Math.max(2, pct)}%;"></div></div>` +
+              `<div class="vps-disk-stats mono">` +
+              `<span>Used: ${formatBytes(d.usedBytes)} / ${formatBytes(d.totalBytes)}</span>` +
+              `<span>Free: ${formatBytes(d.freeBytes)}</span>` +
+              `</div>` +
+              `</div>`
+            );
+          })
+          .join('');
+      }
+    }
+
+    renderVpsProcesses();
+    renderVpsTerminal();
+  }
+
+  async function loadVpsView(includePublicIp = false) {
+    const query = includePublicIp ? '?publicIp=1' : '';
+    const data = await api(`/api/vps/overview${query}`);
+    state.vpsSnapshot = data.vps;
+    renderVpsHostDetails(data.vps);
+    return data.vps;
+  }
+
+  async function runVpsShellCommand(rawCmd) {
+    const command = String(rawCmd || '').trim();
+    if (!command) return;
+    if (state.vpsBusy) {
+      toast('A shell command is still running. Click Abort to stop it first.', 'warn');
+      return;
+    }
+
+    state.vpsHistory.push(command);
+    state.vpsHistoryIdx = state.vpsHistory.length;
+
+    const termBefore = state.vpsSnapshot?.terminal || { user: 'operator', hostname: 'vps', displayCwd: '~' };
+    const entry = {
+      prompt: `${termBefore.user}@${termBefore.hostname}:${termBefore.displayCwd}$`,
+      command,
+      stdout: '',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 0,
+      timedOut: false,
+      pending: true,
+    };
+    state.vpsEntries.push(entry);
+    if (state.vpsEntries.length > 80) state.vpsEntries.shift();
+
+    state.vpsBusy = true;
+    syncVpsTerminalChrome(termBefore);
+    renderVpsTerminal();
+
+    try {
+      const res = await api('/api/vps/exec', {
+        method: 'POST',
+        body: { command, timeoutMs: 30000 },
+      });
+      entry.pending = false;
+      entry.stdout = res.stdout || '';
+      entry.stderr = res.stderr || '';
+      entry.exitCode = res.exitCode ?? 0;
+      entry.durationMs = res.durationMs || 0;
+      entry.timedOut = Boolean(res.timedOut);
+      if (state.vpsSnapshot && res.state) {
+        state.vpsSnapshot.terminal = res.state;
+      }
+    } catch (err) {
+      entry.pending = false;
+      entry.exitCode = 1;
+      entry.stderr = err.message || 'Execution failed';
+    } finally {
+      state.vpsBusy = false;
+      syncVpsTerminalChrome(state.vpsSnapshot?.terminal);
+      renderVpsTerminal();
+    }
+  }
+
   // ─── Navigation Switching (Sidebar + Mobile/Tablet Quick Tabs) ───
   async function switchView(viewName) {
     state.activeView = viewName;
@@ -859,6 +1132,8 @@
       if (viewName === 'console') {
         renderConsoleLines();
         requestAnimationFrame(drawAllCharts);
+      } else if (viewName === 'vps') {
+        await loadVpsView(false);
       } else if (viewName === 'runtime') {
         await Promise.all([loadOverview(), loadCommandsView()]);
       } else if (viewName === 'minecraft') {
@@ -1338,6 +1613,101 @@
     // Audit View
     $('auditCategorySelect').addEventListener('change', () => loadAuditView().catch((e) => toast(e.message, 'error')));
     $('btnRefreshAudit').addEventListener('click', () => loadAuditView().catch((e) => toast(e.message, 'error')));
+
+    // VPS Host Control & Shell Terminal View
+    const vpsExecForm = $('vpsExecForm');
+    const vpsCmdInput = $('vpsCmdInput');
+    if (vpsExecForm && vpsCmdInput) {
+      vpsExecForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const val = vpsCmdInput.value;
+        if (!val.trim()) return;
+        vpsCmdInput.value = '';
+        await runVpsShellCommand(val);
+        vpsCmdInput.focus();
+      });
+
+      vpsCmdInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp') {
+          if (!state.vpsHistory.length) return;
+          e.preventDefault();
+          state.vpsHistoryIdx = Math.max(0, state.vpsHistoryIdx - 1);
+          vpsCmdInput.value = state.vpsHistory[state.vpsHistoryIdx] || '';
+        } else if (e.key === 'ArrowDown') {
+          if (!state.vpsHistory.length) return;
+          e.preventDefault();
+          state.vpsHistoryIdx = Math.min(state.vpsHistory.length, state.vpsHistoryIdx + 1);
+          vpsCmdInput.value = state.vpsHistory[state.vpsHistoryIdx] || '';
+        } else if (e.ctrlKey && (e.key === 'c' || e.key === 'C') && state.vpsBusy) {
+          e.preventDefault();
+          $('btnVpsAbort')?.click();
+        } else if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
+          e.preventDefault();
+          state.vpsEntries = [];
+          renderVpsTerminal();
+        }
+      });
+    }
+
+    document.querySelectorAll('[data-vps-chip]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        runVpsShellCommand(chip.dataset.vpsChip);
+      });
+    });
+
+    $('btnVpsAbort')?.addEventListener('click', async () => {
+      try {
+        const res = await api('/api/vps/abort', { method: 'POST' });
+        toast(res.aborted ? 'Running shell command aborted' : res.message || 'No active process');
+        await loadVpsView(false);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnVpsResetCwd')?.addEventListener('click', async () => {
+      try {
+        const res = await api('/api/vps/reset', { method: 'POST' });
+        if (state.vpsSnapshot && res.state) state.vpsSnapshot.terminal = res.state;
+        syncVpsTerminalChrome(res.state);
+        toast(`Working directory reset to ${res.state?.displayCwd || '~'}`);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnVpsClear')?.addEventListener('click', () => {
+      state.vpsEntries = [];
+      renderVpsTerminal();
+    });
+
+    $('btnVpsRefresh')?.addEventListener('click', () =>
+      loadVpsView(false)
+        .then(() => toast('VPS host telemetry refreshed'))
+        .catch((e) => toast(e.message, 'error'))
+    );
+
+    $('btnVpsCheckPublicIp')?.addEventListener('click', async () => {
+      try {
+        const vps = await loadVpsView(true);
+        if (vps?.network?.publicIp) {
+          toast(`Public IP: ${vps.network.publicIp}`);
+        } else {
+          toast('Public IP lookup unavailable in offline/dry-run mode', 'warn');
+        }
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    $('btnVpsRefreshProcs')?.addEventListener('click', () =>
+      loadVpsView(false).catch((e) => toast(e.message, 'error'))
+    );
+
+    $('vpsProcSearchInput')?.addEventListener('input', (e) => {
+      state.vpsProcFilter = e.target.value || '';
+      renderVpsProcesses();
+    });
 
     // Confirmation Modal
     $('btnConfirmCancel').addEventListener('click', () => {

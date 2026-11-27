@@ -300,21 +300,21 @@ async function main() {
     }
   });
 
-  // 6. Overview, Power, Runtime Switches, Pairing & 87-Command Registry
-  await step('Overview, Power, Runtime Switches & 87-Command Registry verified', async () => {
+  // 6. Overview, Power, Runtime Switches, Pairing & 89-Command Registry
+  await step('Overview, Power, Runtime Switches & 89-Command Registry verified', async () => {
     const ov = await req('/api/overview');
     assert.equal(ov.status, 200);
-    assert.equal(ov.data.overview.instance.commands.commandsCount, 87);
+    assert.equal(ov.data.overview.instance.commands.commandsCount, 89);
 
     const cmds = await req('/api/commands');
     assert.equal(cmds.status, 200);
-    assert.equal(cmds.data.commands.length, 87);
+    assert.equal(cmds.data.commands.length, 89);
 
-    for (const tagCmdName of ['tagall', 'hidetag']) {
-      const tagCmd = cmds.data.commands.find((c) => c.name === tagCmdName);
-      assert.ok(tagCmd, `Command .${tagCmdName} harus terdaftar di katalog panel`);
-      assert.equal(tagCmd.ownerOnly, true, `.${tagCmdName} wajib ownerOnly: true`);
-      assert.equal(tagCmd.adminOnly, false, `.${tagCmdName} wajib adminOnly: false`);
+    for (const ownerStrictName of ['tagall', 'hidetag', 'vps', 'sh']) {
+      const cmdObj = cmds.data.commands.find((c) => c.name === ownerStrictName);
+      assert.ok(cmdObj, `Command .${ownerStrictName} harus terdaftar di katalog panel`);
+      assert.equal(cmdObj.ownerOnly, true, `.${ownerStrictName} wajib ownerOnly: true`);
+      assert.equal(cmdObj.adminOnly, false, `.${ownerStrictName} wajib adminOnly: false`);
     }
 
     for (const staticAsset of ['/styles.css', '/charts.js', '/app.js']) {
@@ -452,6 +452,67 @@ async function main() {
     const audit = await req('/api/audit?limit=50');
     assert.equal(audit.status, 200);
     assert.ok(audit.data.logs.length >= 5);
+  });
+
+  // 10. VPS Host Control & Stateful Linux Shell Terminal (/api/vps/*)
+  await step('VPS Host Control & Linux Shell Terminal: auth gate, real telemetry, stateful CWD, secret redaction & safety guards', async () => {
+    const unauthVps = await req('/api/vps/overview', { cookie: '' });
+    assert.equal(unauthVps.status, 401);
+
+    const unauthExec = await req('/api/vps/exec', {
+      method: 'POST',
+      cookie: '',
+      body: { command: 'whoami' },
+    });
+    assert.equal(unauthExec.status, 401);
+
+    const vpsOv = await req('/api/vps/overview');
+    assert.equal(vpsOv.status, 200);
+    assert.ok(vpsOv.data.vps.host.hostname.length > 0);
+    assert.ok(vpsOv.data.vps.memory.totalBytes > 0);
+    assert.ok(Array.isArray(vpsOv.data.vps.disks) && vpsOv.data.vps.disks.length >= 1);
+    assert.ok(Array.isArray(vpsOv.data.vps.processes) && vpsOv.data.vps.processes.length >= 1);
+
+    // Stateful CWD across terminal commands + secret redaction
+    const cdRes = await req('/api/vps/exec', {
+      method: 'POST',
+      body: { command: 'cd /tmp' },
+    });
+    assert.equal(cdRes.status, 200);
+    assert.equal(cdRes.data.state.cwd, '/tmp');
+
+    const pwdRes = await req('/api/vps/exec', {
+      method: 'POST',
+      body: { command: `pwd && echo "SECRET=${process.env.PANEL_PASSWORD}"` },
+    });
+    assert.equal(pwdRes.status, 200);
+    assert.ok(pwdRes.data.stdout.includes('/tmp'), 'CWD /tmp wajib persisten');
+    assert.equal(
+      pwdRes.data.stdout.includes(process.env.PANEL_PASSWORD),
+      false,
+      'PANEL_PASSWORD wajib otomatis di-redact dari output terminal'
+    );
+
+    // Block catastrophic rm -rf / and block killing panel's own PID
+    const blockedRm = await req('/api/vps/exec', {
+      method: 'POST',
+      body: { command: 'rm -rf /' },
+    });
+    assert.equal(blockedRm.status, 400);
+
+    const blockedSelfKill = await req('/api/vps/kill', {
+      method: 'POST',
+      body: { pid: process.pid, signal: 'SIGTERM' },
+    });
+    assert.equal(blockedSelfKill.status, 400);
+
+    const resetRes = await req('/api/vps/reset', { method: 'POST' });
+    assert.equal(resetRes.status, 200);
+    assert.notEqual(resetRes.data.state.cwd, '/tmp');
+
+    const vpsAudit = await req('/api/audit?limit=20&category=vps_control');
+    assert.equal(vpsAudit.status, 200);
+    assert.ok(vpsAudit.data.logs.length >= 2, 'Audit log vps_control wajib tercatat');
   });
 
   await stopControlPanelServer();
