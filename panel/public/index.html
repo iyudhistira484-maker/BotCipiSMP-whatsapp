@@ -15,7 +15,8 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261127v" />
+  <link rel="stylesheet" href="/vendor/xterm.css?v=20261127p" />
+  <link rel="stylesheet" href="/styles.css?v=20261127p" />
 </head>
 <body>
   <!-- ═══ Authentication Gate ═══ -->
@@ -705,53 +706,63 @@
           </div>
         </section>
 
-        <!-- ═══ VIEW 1B: VPS Host Control & Linux Shell Terminal ═══ -->
+        <!-- ═══ VIEW 1B: VPS Host Control & Full Interactive PTY Terminal ═══ -->
         <section id="view-vps" class="view-section hidden">
-          <div class="panel-card terminal-card vps-terminal-card">
+          <div id="vpsTerminalCard" class="panel-card terminal-card vps-terminal-card">
             <div class="panel-head">
               <div class="panel-title">
                 <svg width="15" height="15" class="icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="7 8 10 10.5 7 13"/><line x1="12" y1="13" x2="16" y2="13"/></svg>
-                <span>pts/0 · Host Linux Shell Terminal</span>
-                <span id="vpsCwdBadge" class="badge mono">~</span>
-                <span id="vpsShellStateBadge" class="badge ok">IDLE</span>
+                <span>Full Interactive PTY Terminal</span>
+                <span id="vpsTtyBadge" class="badge mono">/dev/pts</span>
+                <span id="vpsSizeBadge" class="badge mono">100x30</span>
+                <span id="vpsShellStateBadge" class="badge warn">CONNECTING</span>
               </div>
               <div class="console-head-tools">
                 <div class="badge-group">
-                  <button type="button" id="btnVpsAbort" class="btn btn-danger btn-sm" disabled title="Abort Running Command (SIGTERM)">Abort</button>
-                  <button type="button" id="btnVpsResetCwd" class="btn btn-sm" title="Reset Working Directory to Bot Root">Reset CWD</button>
-                  <button type="button" id="btnVpsClear" class="btn btn-sm">Clear</button>
+                  <button type="button" id="btnVpsExpand" class="btn btn-sm" title="Toggle Tall Terminal Viewport">Tall View</button>
+                  <button type="button" id="btnVpsReconnect" class="btn btn-primary btn-sm" title="Spawn Fresh Interactive Bash PTY">Reconnect PTY</button>
+                  <button type="button" id="btnVpsClear" class="btn btn-sm" title="Clear Screen (Ctrl+L)">Clear</button>
                 </div>
               </div>
             </div>
 
-            <div id="vpsTerminalViewport" class="terminal-viewport vps-viewport" aria-live="polite"></div>
+            <div id="vpsXtermMount" class="vps-xterm-mount" aria-label="Interactive SSH PTY Terminal"></div>
 
-            <div class="terminal-quick-bar">
-              <span class="terminal-quick-label">Quick Shell:</span>
-              <button type="button" class="terminal-chip" data-vps-chip="uname -a">uname -a</button>
-              <button type="button" class="terminal-chip" data-vps-chip="uptime">uptime</button>
-              <button type="button" class="terminal-chip" data-vps-chip="free -h">free -h</button>
-              <button type="button" class="terminal-chip" data-vps-chip="df -h">df -h</button>
-              <button type="button" class="terminal-chip" data-vps-chip="ps aux --sort=-%cpu | head -n 15">top cpu</button>
+            <div class="terminal-quick-bar vps-keys-bar">
+              <span class="terminal-quick-label">Keys:</span>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="ESC" title="Escape (Exit Vim Insert)">ESC</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="TAB" title="Tab Auto-Complete">TAB</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="CTRL_C" title="SIGINT Interrupt (Ctrl+C)">^C</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="CTRL_X" title="Exit Nano (Ctrl+X)">^X</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="CTRL_O" title="Save in Nano (Ctrl+O)">^O</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="CTRL_Z" title="Suspend Process (Ctrl+Z)">^Z</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="CTRL_D" title="EOF / Logout (Ctrl+D)">^D</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="UP" title="Up Arrow">UP</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="DOWN" title="Down Arrow">DN</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="LEFT" title="Left Arrow">LT</button>
+              <button type="button" class="terminal-chip vps-key-btn" data-pty-seq="RIGHT" title="Right Arrow">RT</button>
+              <span class="terminal-quick-label" style="margin-left:6px;">Quick:</span>
+              <button type="button" class="terminal-chip" data-vps-chip="htop || top">htop/top</button>
+              <button type="button" class="terminal-chip" data-vps-chip="free -h && df -h">ram &amp; disk</button>
               <button type="button" class="terminal-chip" data-vps-chip="ss -tulpn">ports</button>
-              <button type="button" class="terminal-chip" data-vps-chip="pm2 status">pm2 status</button>
-              <button type="button" class="terminal-chip" data-vps-chip="git status -sb">git status</button>
+              <button type="button" class="terminal-chip" data-vps-chip="pm2 status">pm2</button>
+              <button type="button" class="terminal-chip" data-vps-chip="git status -sb">git</button>
             </div>
 
             <form id="vpsExecForm" class="terminal-input-bar">
               <span class="terminal-prompt">
-                <span id="vpsPromptFull" class="terminal-prompt-full">operator@vps:~$</span>
-                <span id="vpsPromptShort" class="terminal-prompt-short">~$</span>
+                <span id="vpsPromptFull" class="terminal-prompt-full">pty-send &gt;</span>
+                <span id="vpsPromptShort" class="terminal-prompt-short">&gt;</span>
               </span>
               <input
                 id="vpsCmdInput"
                 type="text"
                 class="terminal-cmd-input"
-                placeholder="Execute Linux shell command (ls -la, cd /var/log, df -h, pm2 logs --lines 20)..."
+                placeholder="Click terminal above to type directly (nano, htop, Tab, [Y/n]), or paste command line here..."
                 autocomplete="off"
                 spellcheck="false"
               />
-              <button type="submit" id="btnVpsExecSubmit" class="btn btn-primary btn-sm">Run</button>
+              <button type="submit" id="btnVpsExecSubmit" class="btn btn-primary btn-sm">Send Line</button>
             </form>
           </div>
 
@@ -915,7 +926,9 @@
 
   <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
-  <script src="/charts.js?v=20261127v"></script>
-  <script src="/app.js?v=20261127v"></script>
+  <script src="/vendor/xterm.js?v=20261127p"></script>
+  <script src="/vendor/addon-fit.js?v=20261127p"></script>
+  <script src="/charts.js?v=20261127p"></script>
+  <script src="/app.js?v=20261127p"></script>
 </body>
 </html>

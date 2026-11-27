@@ -21,10 +21,11 @@
     userSearch: '',
     selectedUser: null,
     vpsSnapshot: null,
-    vpsEntries: [],
-    vpsHistory: [],
-    vpsHistoryIdx: -1,
-    vpsBusy: false,
+    vpsTerm: null,
+    vpsFitAddon: null,
+    vpsPtyWs: null,
+    vpsPtyPingTimer: null,
+    vpsTallMode: false,
     vpsProcFilter: '',
     vpsPublicIp: null,
     sse: null,
@@ -194,12 +195,29 @@
     return data;
   }
 
+  function closePtySocket() {
+    if (state.vpsPtyPingTimer) {
+      clearInterval(state.vpsPtyPingTimer);
+      state.vpsPtyPingTimer = null;
+    }
+    if (state.vpsPtyWs) {
+      try {
+        state.vpsPtyWs.onclose = null;
+        state.vpsPtyWs.close();
+      } catch {
+        // Ignore close error
+      }
+      state.vpsPtyWs = null;
+    }
+  }
+
   // ─── Auth Gate ───
   function showAuthGate() {
     if (state.sse) {
       state.sse.close();
       state.sse = null;
     }
+    closePtySocket();
     setSidebarOpen(false);
     $('btnQuickPreview').classList.toggle('hidden', !state.sandboxPreview);
     $('authOverlay').classList.remove('hidden');
@@ -847,69 +865,199 @@
       .join('');
   }
 
-  // ─── VPS Host Control & Linux Shell Terminal View ───
-  function syncVpsTerminalChrome(term) {
-    if (!term) return;
-    const promptFull = `${term.user || 'operator'}@${term.hostname || 'vps'}:${term.displayCwd || '~'}$`;
-    const promptShort = `${term.displayCwd || '~'}$`;
-    if ($('vpsPromptFull')) $('vpsPromptFull').textContent = promptFull;
-    if ($('vpsPromptShort')) $('vpsPromptShort').textContent = promptShort;
-    if ($('vpsCwdBadge')) {
-      $('vpsCwdBadge').textContent = term.displayCwd || '~';
-      $('vpsCwdBadge').title = term.cwd || '';
-    }
-    const running = Boolean(term.running || state.vpsBusy);
+  // ─── VPS Host Control & Full Interactive PTY Terminal (xterm.js + WebSocket) ───
+  const PTY_SPECIAL_SEQUENCES = {
+    ESC: '\x1b',
+    TAB: '\t',
+    CTRL_C: '\x03',
+    CTRL_X: '\x18',
+    CTRL_O: '\x0f',
+    CTRL_Z: '\x1a',
+    CTRL_D: '\x04',
+    CTRL_L: '\x0c',
+    UP: '\x1b[A',
+    DOWN: '\x1b[B',
+    LEFT: '\x1b[D',
+    RIGHT: '\x1b[C',
+  };
+
+  function setPtyBadgeState(status, labelText) {
     const badge = $('vpsShellStateBadge');
-    if (badge) {
-      badge.textContent = running ? 'RUNNING' : 'IDLE';
-      badge.className = `badge ${running ? 'warn' : 'ok'}`;
-    }
-    if ($('btnVpsAbort')) $('btnVpsAbort').disabled = !running;
-    if ($('btnVpsExecSubmit')) $('btnVpsExecSubmit').disabled = running;
+    if (!badge) return;
+    badge.textContent = labelText;
+    badge.className = `badge ${status}`;
   }
 
-  function renderVpsTerminal() {
-    const vp = $('vpsTerminalViewport');
-    if (!vp) return;
-    if (!state.vpsEntries.length) {
-      const term = state.vpsSnapshot?.terminal;
-      const hostInfo = state.vpsSnapshot?.host;
-      vp.innerHTML =
-        `<div class="vps-empty-hint mono">` +
-        `Connected to host shell (${escapeHtml(term?.shell || 'bash')}) on ${escapeHtml(hostInfo?.hostname || 'VPS')} · ` +
-        `${escapeHtml(hostInfo?.distro || 'Linux')}<br/>` +
-        `Working directory: ${escapeHtml(term?.cwd || '.')} — Directory changes via "cd" persist across commands. ` +
-        `Sensitive .env credentials are automatically redacted.` +
-        `</div>`;
-      return;
+  function sendPtyPayload(payload) {
+    const ws = state.vpsPtyWs;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(payload));
+      return true;
+    }
+    return false;
+  }
+
+  function sendPtyInput(rawStr) {
+    if (!rawStr) return false;
+    return sendPtyPayload({ type: 'input', data: String(rawStr) });
+  }
+
+  function fitVpsPty() {
+    if (!state.vpsTerm || !state.vpsFitAddon) return;
+    const mount = $('vpsXtermMount');
+    if (!mount || mount.offsetWidth < 40 || mount.offsetHeight < 40) return;
+    try {
+      state.vpsFitAddon.fit();
+      const cols = state.vpsTerm.cols || 100;
+      const rows = state.vpsTerm.rows || 30;
+      if ($('vpsSizeBadge')) $('vpsSizeBadge').textContent = `${cols}x${rows}`;
+      sendPtyPayload({ type: 'resize', cols, rows });
+    } catch {
+      // Ignore layout transient errors
+    }
+  }
+
+  function ensureXtermMounted() {
+    if (state.vpsTerm) return state.vpsTerm;
+    const mount = $('vpsXtermMount');
+    if (!mount || typeof window.Terminal !== 'function') return null;
+
+    const term = new window.Terminal({
+      cursorBlink: true,
+      cursorStyle: 'block',
+      scrollback: 5000,
+      fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+      fontSize: window.innerWidth < 768 ? 12 : 13,
+      lineHeight: 1.24,
+      convertEol: false,
+      theme: {
+        background: '#07080b',
+        foreground: '#e5e7eb',
+        cursor: '#38bdf8',
+        cursorAccent: '#07080b',
+        selectionBackground: 'rgba(59, 130, 246, 0.34)',
+        black: '#18181f',
+        red: '#f87171',
+        green: '#34d399',
+        yellow: '#fbbf24',
+        blue: '#60a5fa',
+        magenta: '#c084fc',
+        cyan: '#22d3ee',
+        white: '#e5e7eb',
+        brightBlack: '#6b7280',
+        brightRed: '#fca5a5',
+        brightGreen: '#6ee7b7',
+        brightYellow: '#fde68a',
+        brightBlue: '#93c5fd',
+        brightMagenta: '#d8b4fe',
+        brightCyan: '#67e8f9',
+        brightWhite: '#ffffff',
+      },
+    });
+
+    const FitCtor = window.FitAddon && (window.FitAddon.FitAddon || window.FitAddon);
+    if (typeof FitCtor === 'function') {
+      const fitAddon = new FitCtor();
+      term.loadAddon(fitAddon);
+      state.vpsFitAddon = fitAddon;
     }
 
-    vp.innerHTML = state.vpsEntries
-      .map((ent) => {
-        const metaClass = ent.pending ? '' : ent.exitCode === 0 && !ent.timedOut ? 'ok' : 'err';
-        const metaText = ent.pending
-          ? 'running...'
-          : ent.timedOut
-            ? `timeout · ${ent.durationMs} ms`
-            : `exit ${ent.exitCode} · ${ent.durationMs} ms`;
-        return (
-          `<div class="vps-entry">` +
-          `<div class="vps-entry-head">` +
-          `<div><span class="vps-entry-prompt mono">${escapeHtml(ent.prompt)}</span> ` +
-          `<span class="vps-entry-cmd mono">${escapeHtml(ent.command)}</span></div>` +
-          `<span class="vps-entry-meta mono ${metaClass}">${escapeHtml(metaText)}</span>` +
-          `</div>` +
-          (ent.stdout ? `<pre class="vps-entry-out">${escapeHtml(ent.stdout)}</pre>` : '') +
-          (ent.stderr ? `<pre class="vps-entry-err">${escapeHtml(ent.stderr)}</pre>` : '') +
-          (!ent.pending && !ent.stdout && !ent.stderr
-            ? `<pre class="vps-entry-out" style="color:#6e7688;">(completed with no output)</pre>`
-            : '') +
-          `</div>`
-        );
-      })
-      .join('');
+    mount.innerHTML = '';
+    term.open(mount);
 
-    vp.scrollTop = vp.scrollHeight;
+    term.onData((data) => {
+      if (!sendPtyInput(data) && (!state.vpsPtyWs || state.vpsPtyWs.readyState === WebSocket.CLOSED)) {
+        connectPtyWebSocket(false);
+      }
+    });
+
+    term.onResize(({ cols, rows }) => {
+      if ($('vpsSizeBadge')) $('vpsSizeBadge').textContent = `${cols}x${rows}`;
+      sendPtyPayload({ type: 'resize', cols, rows });
+    });
+
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(() => {
+        if (state.activeView === 'vps') {
+          requestAnimationFrame(fitVpsPty);
+        }
+      });
+      ro.observe(mount);
+    }
+
+    state.vpsTerm = term;
+    requestAnimationFrame(fitVpsPty);
+    return term;
+  }
+
+  function connectPtyWebSocket(resetScreen = false) {
+    const term = ensureXtermMounted();
+    if (!term) return;
+
+    closePtySocket();
+    if (resetScreen) {
+      term.reset();
+    }
+    fitVpsPty();
+
+    const cols = term.cols || 100;
+    const rows = term.rows || 30;
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const tokenParam = state.token ? `&token=${encodeURIComponent(state.token)}` : '';
+    const wsUrl = `${wsProto}//${window.location.host}/api/vps/pty?cols=${cols}&rows=${rows}${tokenParam}`;
+
+    setPtyBadgeState('warn', 'CONNECTING');
+    const ws = new WebSocket(wsUrl);
+    state.vpsPtyWs = ws;
+
+    ws.onopen = () => {
+      setPtyBadgeState('ok', 'PTY LIVE');
+      fitVpsPty();
+      term.focus();
+      state.vpsPtyPingTimer = setInterval(() => {
+        sendPtyPayload({ type: 'ping' });
+      }, 25000);
+    };
+
+    ws.onmessage = (ev) => {
+      let msg;
+      try {
+        msg = JSON.parse(ev.data);
+      } catch {
+        return;
+      }
+      if (msg.type === 'output' && typeof msg.data === 'string') {
+        term.write(msg.data);
+      } else if (msg.type === 'ready') {
+        setPtyBadgeState('ok', 'PTY LIVE');
+        if ($('vpsTtyBadge')) {
+          $('vpsTtyBadge').textContent = msg.tty || '/dev/pts';
+          $('vpsTtyBadge').title = `Shell PID ${msg.pid || '-'} (${msg.backend || 'pty'})`;
+        }
+      } else if (msg.type === 'exit') {
+        setPtyBadgeState('danger', `EXITED (${msg.exitCode ?? 0})`);
+        term.write(
+          `\r\n\x1b[33m[PTY session closed — exit code ${msg.exitCode ?? 0}. Press Enter or click "Reconnect PTY" to open a new shell.]\x1b[0m\r\n`
+        );
+      }
+    };
+
+    ws.onclose = () => {
+      if (state.vpsPtyPingTimer) {
+        clearInterval(state.vpsPtyPingTimer);
+        state.vpsPtyPingTimer = null;
+      }
+      if (state.vpsPtyWs === ws) {
+        state.vpsPtyWs = null;
+        if ($('vpsShellStateBadge')?.textContent === 'PTY LIVE' || $('vpsShellStateBadge')?.textContent === 'CONNECTING') {
+          setPtyBadgeState('danger', 'DISCONNECTED');
+        }
+      }
+    };
+
+    ws.onerror = () => {
+      setPtyBadgeState('danger', 'WS ERROR');
+    };
   }
 
   function renderVpsProcesses() {
@@ -973,7 +1121,6 @@
 
   function renderVpsHostDetails(vps) {
     if (!vps) return;
-    syncVpsTerminalChrome(vps.terminal);
 
     if (vps.network?.publicIp) {
       state.vpsPublicIp = vps.network.publicIp;
@@ -1048,69 +1195,23 @@
     }
 
     renderVpsProcesses();
-    renderVpsTerminal();
   }
 
   async function loadVpsView(includePublicIp = false) {
+    ensureXtermMounted();
+    if (!state.vpsPtyWs || state.vpsPtyWs.readyState > WebSocket.OPEN) {
+      connectPtyWebSocket(false);
+    } else {
+      requestAnimationFrame(() => {
+        fitVpsPty();
+        state.vpsTerm?.focus();
+      });
+    }
     const query = includePublicIp ? '?publicIp=1' : '';
     const data = await api(`/api/vps/overview${query}`);
     state.vpsSnapshot = data.vps;
     renderVpsHostDetails(data.vps);
     return data.vps;
-  }
-
-  async function runVpsShellCommand(rawCmd) {
-    const command = String(rawCmd || '').trim();
-    if (!command) return;
-    if (state.vpsBusy) {
-      toast('A shell command is still running. Click Abort to stop it first.', 'warn');
-      return;
-    }
-
-    state.vpsHistory.push(command);
-    state.vpsHistoryIdx = state.vpsHistory.length;
-
-    const termBefore = state.vpsSnapshot?.terminal || { user: 'operator', hostname: 'vps', displayCwd: '~' };
-    const entry = {
-      prompt: `${termBefore.user}@${termBefore.hostname}:${termBefore.displayCwd}$`,
-      command,
-      stdout: '',
-      stderr: '',
-      exitCode: 0,
-      durationMs: 0,
-      timedOut: false,
-      pending: true,
-    };
-    state.vpsEntries.push(entry);
-    if (state.vpsEntries.length > 80) state.vpsEntries.shift();
-
-    state.vpsBusy = true;
-    syncVpsTerminalChrome(termBefore);
-    renderVpsTerminal();
-
-    try {
-      const res = await api('/api/vps/exec', {
-        method: 'POST',
-        body: { command, timeoutMs: 30000 },
-      });
-      entry.pending = false;
-      entry.stdout = res.stdout || '';
-      entry.stderr = res.stderr || '';
-      entry.exitCode = res.exitCode ?? 0;
-      entry.durationMs = res.durationMs || 0;
-      entry.timedOut = Boolean(res.timedOut);
-      if (state.vpsSnapshot && res.state) {
-        state.vpsSnapshot.terminal = res.state;
-      }
-    } catch (err) {
-      entry.pending = false;
-      entry.exitCode = 1;
-      entry.stderr = err.message || 'Execution failed';
-    } finally {
-      state.vpsBusy = false;
-      syncVpsTerminalChrome(state.vpsSnapshot?.terminal);
-      renderVpsTerminal();
-    }
   }
 
   // ─── Navigation Switching (Sidebar + Mobile/Tablet Quick Tabs) ───
@@ -1614,71 +1715,74 @@
     $('auditCategorySelect').addEventListener('change', () => loadAuditView().catch((e) => toast(e.message, 'error')));
     $('btnRefreshAudit').addEventListener('click', () => loadAuditView().catch((e) => toast(e.message, 'error')));
 
-    // VPS Host Control & Shell Terminal View
+    // VPS Host Control & Full Interactive PTY Terminal View
     const vpsExecForm = $('vpsExecForm');
     const vpsCmdInput = $('vpsCmdInput');
     if (vpsExecForm && vpsCmdInput) {
-      vpsExecForm.addEventListener('submit', async (e) => {
+      vpsExecForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const val = vpsCmdInput.value;
-        if (!val.trim()) return;
         vpsCmdInput.value = '';
-        await runVpsShellCommand(val);
-        vpsCmdInput.focus();
-      });
-
-      vpsCmdInput.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowUp') {
-          if (!state.vpsHistory.length) return;
-          e.preventDefault();
-          state.vpsHistoryIdx = Math.max(0, state.vpsHistoryIdx - 1);
-          vpsCmdInput.value = state.vpsHistory[state.vpsHistoryIdx] || '';
-        } else if (e.key === 'ArrowDown') {
-          if (!state.vpsHistory.length) return;
-          e.preventDefault();
-          state.vpsHistoryIdx = Math.min(state.vpsHistory.length, state.vpsHistoryIdx + 1);
-          vpsCmdInput.value = state.vpsHistory[state.vpsHistoryIdx] || '';
-        } else if (e.ctrlKey && (e.key === 'c' || e.key === 'C') && state.vpsBusy) {
-          e.preventDefault();
-          $('btnVpsAbort')?.click();
-        } else if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
-          e.preventDefault();
-          state.vpsEntries = [];
-          renderVpsTerminal();
+        if (!state.vpsPtyWs || state.vpsPtyWs.readyState !== WebSocket.OPEN) {
+          connectPtyWebSocket(false);
+          setTimeout(() => {
+            sendPtyInput(`${val}\r`);
+            state.vpsTerm?.focus();
+          }, 260);
+          return;
         }
+        sendPtyInput(`${val}\r`);
+        state.vpsTerm?.focus();
       });
     }
 
-    document.querySelectorAll('[data-vps-chip]').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        runVpsShellCommand(chip.dataset.vpsChip);
+    document.querySelectorAll('[data-pty-seq]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const seq = PTY_SPECIAL_SEQUENCES[btn.dataset.ptySeq];
+        if (!seq) return;
+        if (!sendPtyInput(seq)) {
+          toast('PTY disconnected. Clicking Reconnect PTY to open shell.', 'warn');
+          connectPtyWebSocket(false);
+          return;
+        }
+        state.vpsTerm?.focus();
       });
     });
 
-    $('btnVpsAbort')?.addEventListener('click', async () => {
-      try {
-        const res = await api('/api/vps/abort', { method: 'POST' });
-        toast(res.aborted ? 'Running shell command aborted' : res.message || 'No active process');
-        await loadVpsView(false);
-      } catch (err) {
-        toast(err.message, 'error');
-      }
+    document.querySelectorAll('[data-vps-chip]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const cmd = chip.dataset.vpsChip || '';
+        if (!cmd) return;
+        if (!sendPtyInput(`${cmd}\r`)) {
+          connectPtyWebSocket(false);
+          setTimeout(() => sendPtyInput(`${cmd}\r`), 260);
+          return;
+        }
+        state.vpsTerm?.focus();
+      });
     });
 
-    $('btnVpsResetCwd')?.addEventListener('click', async () => {
-      try {
-        const res = await api('/api/vps/reset', { method: 'POST' });
-        if (state.vpsSnapshot && res.state) state.vpsSnapshot.terminal = res.state;
-        syncVpsTerminalChrome(res.state);
-        toast(`Working directory reset to ${res.state?.displayCwd || '~'}`);
-      } catch (err) {
-        toast(err.message, 'error');
-      }
+    $('btnVpsExpand')?.addEventListener('click', () => {
+      const card = $('vpsTerminalCard');
+      if (!card) return;
+      state.vpsTallMode = !state.vpsTallMode;
+      card.classList.toggle('tall', state.vpsTallMode);
+      $('btnVpsExpand').textContent = state.vpsTallMode ? 'Compact View' : 'Tall View';
+      requestAnimationFrame(fitVpsPty);
+      state.vpsTerm?.focus();
+    });
+
+    $('btnVpsReconnect')?.addEventListener('click', () => {
+      connectPtyWebSocket(true);
+      toast('Interactive PTY session respawned');
     });
 
     $('btnVpsClear')?.addEventListener('click', () => {
-      state.vpsEntries = [];
-      renderVpsTerminal();
+      if (state.vpsTerm) {
+        state.vpsTerm.clear();
+        sendPtyInput('\x0c');
+        state.vpsTerm.focus();
+      }
     });
 
     $('btnVpsRefresh')?.addEventListener('click', () =>
