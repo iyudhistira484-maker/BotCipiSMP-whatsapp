@@ -2080,20 +2080,56 @@ async function run() {
     '.dcode tidak boleh memunculkan link grup WA terlarang saat Antilink aktif!'
   );
 
+  // 39. Uji Live .dcode terhadap Script Obfuscator.io v4 Hoisted (Pola rudal2.js)
+  const hoistedObfuscatorScript = [
+    'const _0x184ec0 = _0x5dcb;',
+    '(function(_0x48d8ea, _0x371736) {',
+    '  const _0x52d868 = _0x5dcb, _0x12f5d4 = _0x48d8ea();',
+    '  while (true) {',
+    '    try {',
+    '      const _0x289d93 = parseInt(_0x52d868(300)) / 1 + parseInt(_0x52d868(301)) / 2;',
+    '      if (_0x289d93 === _0x371736) break;',
+    '      else _0x12f5d4.push(_0x12f5d4.shift());',
+    '    } catch (_0x4ac7de) { _0x12f5d4.push(_0x12f5d4.shift()); }',
+    '  }',
+    '}(_0x1a7c, 740518));',
+    "const net = require('net'), http2 = require(_0x184ec0(302));",
+    'function _0x1a7c() {',
+    "  const _0x5d8599 = ['split', 'utf-8', 'https', '400518abc', '680000xyz', 'http2', 'readFileSync'];",
+    '  _0x1a7c = function() { return _0x5d8599; };',
+    '  return _0x1a7c();',
+    '}',
+    'function readLines(_0x8d3d0e) {',
+    '  const _0x40c0b2 = _0x184ec0;',
+    '  return `${_0x40c0b2(306)}:${_0x8d3d0e[_0x40c0b2(304)](",")[0]}`;',
+    '}',
+    'function _0x5dcb(_0x11a, _0x22b) {',
+    '  const _0xee11 = _0x1a7c();',
+    '  return _0x5dcb = function(_0xdd22) { return _0xee11[_0xdd22 - 300]; }, _0x5dcb(_0x11a, _0x22b);',
+    '}',
+  ].join('\n');
+
+  const decodedHoisted = decodeText('auto', hoistedObfuscatorScript);
+  assert.strictEqual(decodedHoisted.syntaxValid, true, 'Hasil deobfuscate hoisted wajib valid JS');
+  assert(!decodedHoisted.result.includes('_0x'), `Hasil .dcode wajib bersih dari sisa _0x:\n${decodedHoisted.result}`);
+  assert(decodedHoisted.result.includes("require('http2')"), 'String array hoisted wajib terdekripsi ke literal asli');
+  assert(decodedHoisted.identifiersRenamed >= 1, 'Variabel lokal _0x wajib dirapikan');
+
   stopKawaiiSchedulers();
   stopCommunitySchedulers();
   stopBridgeServices();
   closeDatabase();
   fs.rmSync('/tmp/cipismp-smoke', { recursive: true, force: true });
 
-  console.log('│ ✅ [31/38] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
-  console.log('│ ✅ [32/38] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
-  console.log('│ ✅ [33/38] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
-  console.log('│ ✅ [34/38] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
-  console.log('│ ✅ [35/38] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
-  console.log('│ ✅ [36/38] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
-  console.log('│ ✅ [37/38] Paket Khas Minecraft SMP (.ach/.sach, .skin 3D/Pixel + UUID, & .poll WA Asli) lulus');
-  console.log('│ ✅ [38/38] Sandi Pintar .ecode & .dcode (Auto-Detect Base64/Hex/Biner/Morse + Anti-Link Smuggling) lulus');
+  console.log('│ ✅ [31/39] Regresi Live Bugfix (@lid Mention, Button contextInfo, Anti-Spam, .toko, .event & .tiket) lulus');
+  console.log('│ ✅ [32/39] Regresi Gelombang 2 (Member 100->99, Saldo Tidak Cukup, UI Chat Berwarna, & Reply Bridge) lulus');
+  console.log('│ ✅ [33/39] Proteksi Ketat Tag Massal (.tagall/.hidetag Khusus Owner, Admin & Member Ditolak) lulus');
+  console.log('│ ✅ [34/39] Antilink Pintar (Bypass Aman .tt/.ig/.yt/.dl & Anti-Penyelundupan Link) lulus');
+  console.log('│ ✅ [35/39] Sistem Tautan Akun MC 26.3 (.link <PIN>, .link kirim, Ranked Chat & Offline Refund) lulus');
+  console.log('│ ✅ [36/39] Fitur Baru Stiker Lokal (.qc, .brat) & Sistem .afk Grup Otomatis lulus');
+  console.log('│ ✅ [37/39] Paket Khas Minecraft SMP (.ach/.sach, .skin 3D/Pixel + UUID, & .poll WA Asli) lulus');
+  console.log('│ ✅ [38/39] Sandi Pintar .ecode & .dcode (Auto-Detect Base64/Hex/Biner/Morse + Anti-Link Smuggling) lulus');
+  console.log('│ ✅ [39/39] JS Deobfuscator v4 (.dcode Hoisted _0x String Array, Crockford IIFE, Multi-Alias & _0x Humanizer) lulus');
   console.log('╰─❖ Semua pengujian Fase 1 s/d Fase 7 + Fitur Baru LULUS sempurna! 🌸♡ ❖');
 }
 

@@ -116,6 +116,7 @@ module.exports = {
           `• Mesin   : *${decoded.format}*`,
           decoded.layersUnpacked ? `• Layer   : *${decoded.layersUnpacked} lapis enkripsi dibuka*` : '',
           decoded.stringsRestored ? `• String  : *${decoded.stringsRestored} teks dipulihkan*` : '',
+          decoded.identifiersRenamed ? `• Variabel: *${decoded.identifiersRenamed} nama _0x dirapikan*` : '',
           `• Ukuran  : *${(outBuf.length / 1024).toFixed(1)} KB*`,
           decoded.isScript ? `• Syntax  : *${decoded.syntaxValid ? 'Valid & Rapi' : 'Dicek Manual'}*` : '',
         ]
