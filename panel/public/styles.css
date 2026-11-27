@@ -1965,84 +1965,41 @@ svg.icon-sm {
   }
 }
 
-/* ─── VPS Host Control & Shell Terminal Module ─── */
-.vps-terminal-card .vps-viewport {
-  min-height: 300px;
-  max-height: 440px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* ─── VPS Host Control & Full Interactive PTY Terminal Module ─── */
+.vps-xterm-mount {
+  height: 410px;
+  background: #07080b;
+  padding: 8px 10px 6px 12px;
+  overflow: hidden;
+  position: relative;
 }
 
-.vps-empty-hint {
-  color: #8b93a7;
-  font-size: 12px;
-  line-height: 1.55;
-  padding: 6px 2px;
+.vps-terminal-card.tall .vps-xterm-mount {
+  height: 640px;
 }
 
-.vps-entry {
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
-  padding-bottom: 8px;
+.vps-xterm-mount .xterm {
+  height: 100%;
+  width: 100%;
 }
 
-.vps-entry:last-child {
-  border-bottom: none;
-  padding-bottom: 2px;
+.vps-xterm-mount .xterm-viewport {
+  background-color: #07080b !important;
+  scrollbar-width: thin;
+  scrollbar-color: #2b2f3d #07080b;
 }
 
-.vps-entry-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 4px;
-}
-
-.vps-entry-prompt {
-  color: #34d399;
-  font-weight: 600;
-}
-
-.vps-entry-cmd {
-  color: #f8fafc;
-  font-weight: 500;
-  word-break: break-all;
-}
-
-.vps-entry-meta {
-  font-size: 11px;
-  color: #9ca3af;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
-
-.vps-entry-meta.ok {
-  color: #34d399;
-}
-
-.vps-entry-meta.err {
-  color: #f87171;
-}
-
-.vps-entry-out,
-.vps-entry-err {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
+.vps-key-btn {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  min-width: 34px;
+  text-align: center;
+  border-color: #2d3242;
 }
 
-.vps-entry-out {
-  color: #e5e7eb;
-}
-
-.vps-entry-err {
-  color: #fca5a5;
-  margin-top: 3px;
+.vps-key-btn:active {
+  transform: translateY(1px);
 }
 
 .vps-disks-stack {
@@ -2088,9 +2045,13 @@ svg.icon-sm {
 }
 
 @media (max-width: 767px) {
-  .vps-terminal-card .vps-viewport {
-    min-height: 240px;
-    max-height: 340px;
+  .vps-xterm-mount {
+    height: 320px;
+    padding: 6px 6px 4px 8px;
+  }
+
+  .vps-terminal-card.tall .vps-xterm-mount {
+    height: 490px;
   }
 
   .vps-disk-top,

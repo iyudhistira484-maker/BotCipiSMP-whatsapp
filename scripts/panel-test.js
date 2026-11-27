@@ -515,6 +515,86 @@ async function main() {
     assert.ok(vpsAudit.data.logs.length >= 2, 'Audit log vps_control wajib tercatat');
   });
 
+  // ─── 14. Full Interactive WebSocket PTY (/api/vps/pty + xterm.js) ───
+  await step('Full Interactive SSH-Grade WebSocket PTY (/api/vps/pty, /dev/pts, TIOCSWINSZ, [Y/n])', async () => {
+    const { WebSocket } = require('ws');
+
+    for (const asset of ['/vendor/xterm.js', '/vendor/addon-fit.js', '/vendor/xterm.css']) {
+      const assetRes = await req(asset, { cookie: '' });
+      assert.equal(assetRes.status, 200, `Vendor asset ${asset} wajib HTTP 200`);
+      assert.ok(assetRes.data.length > 500, `Vendor asset ${asset} tidak boleh kosong`);
+    }
+
+    const wsBase = baseUrl.replace(/^http/, 'ws');
+
+    // 1) Unauthenticated WebSocket upgrade MUST be rejected with 401
+    await new Promise((resolve, reject) => {
+      const unauthWs = new WebSocket(`${wsBase}/api/vps/pty?cols=80&rows=24`);
+      unauthWs.on('unexpected-response', (_req, res) => {
+        assert.equal(res.statusCode, 401, 'WebSocket tanpa sesi wajib ditolak 401');
+        res.resume();
+        resolve();
+      });
+      unauthWs.on('open', () => {
+        unauthWs.close();
+        reject(new Error('Unauthenticated WebSocket PTY seharusnya ditolak!'));
+      });
+      unauthWs.on('error', () => {});
+    });
+
+    // 2) Authenticated WebSocket PTY session: /dev/pts/* + live resize + interactive prompt
+    await new Promise((resolve, reject) => {
+      const ws = new WebSocket(`${wsBase}/api/vps/pty?cols=90&rows=26`, {
+        headers: { Cookie: sessionCookie },
+      });
+      let outBuf = '';
+      let readyMeta = null;
+      let sentPromptReply = false;
+      const timer = setTimeout(() => {
+        ws.close();
+        reject(new Error(`Timeout menunggu output PTY. Buffer sejauh ini:\n${outBuf}`));
+      }, 6000);
+
+      ws.on('open', () => {
+        ws.send(JSON.stringify({ type: 'resize', cols: 136, rows: 42 }));
+        setTimeout(() => {
+          ws.send(
+            JSON.stringify({
+              type: 'input',
+              data: 'tty && stty size && read -p "SSH_PROMPT_YN:" yn && echo "PTY_OK=$yn"\r',
+            })
+          );
+        }, 120);
+      });
+
+      ws.on('message', (raw) => {
+        const msg = JSON.parse(raw.toString('utf8'));
+        if (msg.type === 'ready') {
+          readyMeta = msg;
+        } else if (msg.type === 'output') {
+          outBuf += msg.data;
+          if (!sentPromptReply && outBuf.includes('SSH_PROMPT_YN:')) {
+            sentPromptReply = true;
+            ws.send(JSON.stringify({ type: 'input', data: 'Y_INTERACTIVE\r' }));
+          }
+          if (outBuf.includes('PTY_OK=Y_INTERACTIVE')) {
+            clearTimeout(timer);
+            assert.ok(readyMeta && String(readyMeta.tty).startsWith('/dev/pts/'), 'Wajib alokasi /dev/pts/* asli');
+            assert.ok(outBuf.includes('/dev/pts/'), 'Output tty wajib /dev/pts/*');
+            assert.ok(outBuf.includes('42 136'), `Ukuran stty wajib 42 136:\n${outBuf}`);
+            ws.close();
+            resolve();
+          }
+        }
+      });
+
+      ws.on('error', (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
+  });
+
   await stopControlPanelServer();
   closeDatabase();
   fs.rmSync(tmpRoot, { recursive: true, force: true });
